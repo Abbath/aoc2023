@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
 
@@ -90,7 +91,77 @@ fn day_02() {
     println!("day02 {sum} {sum2}");
 }
 
+fn day_03() {
+    let file = File::open("input/input_03.txt").unwrap();
+    let reader = BufReader::new(file);
+    let lines: Vec<String> = reader.lines().flatten().collect();
+    let h = lines.len();
+    let w = lines[0].len();
+    let mat: Vec<char> = lines
+        .iter()
+        .flat_map(|s| s.chars().collect::<Vec<char>>())
+        .collect();
+    let at = |i: usize, j: usize| mat[i * w + j];
+    let correct = |i: i32, j: i32| i >= 0 && i < h as i32 && j >= 0 && j < w as i32;
+    let mut got_one = false;
+    let mut sum = 0;
+    let mut gears = HashMap::<(i32, i32), Vec<i32>>::new();
+    let mut what_we_got = (' ', (0, 0));
+    for i in 0..h as i32 {
+        let mut numba = 0;
+        for j in 0..w as i32 {
+            let c = at(i as usize, j as usize);
+            if c.is_ascii_digit() {
+                for k in -1..=1 {
+                    for l in -1..=1 {
+                        if correct(i + k, j + l) {
+                            let c2 = at((i + k) as usize, (j + l) as usize);
+                            if !c2.is_ascii_digit() && c2 != '.' {
+                                got_one = true;
+                                if c2 == '*' {
+                                    what_we_got = ('*', (i + k, j + l));
+                                }
+                            }
+                        }
+                    }
+                }
+                numba = numba * 10 + c.to_digit(10).unwrap();
+                if got_one && j == w as i32 - 1 {
+                    if what_we_got.0 == '*' {
+                        gears.entry(what_we_got.1).or_default().push(numba as i32);
+                        what_we_got = (' ', (0, 0));
+                    }
+                    got_one = false;
+                    sum += numba;
+                }
+            } else {
+                if got_one {
+                    if what_we_got.0 == '*' {
+                        gears.entry(what_we_got.1).or_default().push(numba as i32);
+                        what_we_got = (' ', (0, 0));
+                    }
+                    got_one = false;
+                    sum += numba;
+                }
+                numba = 0;
+            }
+        }
+    }
+    let sum2 = gears.iter().fold(
+        0,
+        |acc, (_, v)| {
+            if v.len() == 2 {
+                acc + v[0] * v[1]
+            } else {
+                acc
+            }
+        },
+    );
+    println!("day03 {sum} {sum2}");
+}
+
 fn main() {
     day_01();
     day_02();
+    day_03();
 }
