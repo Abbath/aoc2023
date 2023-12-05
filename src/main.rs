@@ -1,7 +1,7 @@
+use rayon::prelude::*;
 use std::collections::{HashMap, VecDeque};
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
-use rayon::prelude::*;
 
 fn day_01() {
     let file = File::open("input/input_01.txt").unwrap();
@@ -234,19 +234,19 @@ fn day_05() {
     let mut seeds: Vec<u64> = Vec::new();
     type Span = (u64, u64, u64);
     enum MapType {
-        NONE,
-        STS,
-        STF,
-        FTW,
-        WTL,
-        LTT,
-        TTH,
-        HTL,
+        None,
+        Sts,
+        Stf,
+        Ftw,
+        Wtl,
+        Ltt,
+        Tth,
+        Htl,
     }
     let mut spans: Vec<Vec<Span>> = Vec::new();
     let mut spans2: Vec<(u64, u64)> = Vec::new();
     let mut sps: Vec<Span> = Vec::new();
-    let mut flag = MapType::NONE;
+    let mut flag = MapType::None;
     for line in lines.iter() {
         if line.is_empty() {
             continue;
@@ -261,47 +261,47 @@ fn day_05() {
             spans2 = seeds.chunks(2).map(|s| (s[0], s[1])).collect();
         }
         if line.starts_with("seed-to-soil") {
-            flag = MapType::STS;
+            flag = MapType::Sts;
             continue;
         }
         if line.starts_with("soil-to-fertilizer") {
-            flag = MapType::STF;
+            flag = MapType::Stf;
             spans.push(sps.clone());
             sps.clear();
             continue;
         }
         if line.starts_with("fertilizer-to-water") {
-            flag = MapType::FTW;
+            flag = MapType::Ftw;
             spans.push(sps.clone());
             sps.clear();
             continue;
         }
         if line.starts_with("water-to-light") {
-            flag = MapType::WTL;
+            flag = MapType::Wtl;
             spans.push(sps.clone());
             sps.clear();
             continue;
         }
         if line.starts_with("light-to-temperature") {
-            flag = MapType::LTT;
+            flag = MapType::Ltt;
             spans.push(sps.clone());
             sps.clear();
             continue;
         }
         if line.starts_with("temperature-to-humidity") {
-            flag = MapType::TTH;
+            flag = MapType::Tth;
             spans.push(sps.clone());
             sps.clear();
             continue;
         }
         if line.starts_with("humidity-to-location") {
-            flag = MapType::HTL;
+            flag = MapType::Htl;
             spans.push(sps.clone());
             sps.clear();
             continue;
         }
         match flag {
-            MapType::NONE => continue,
+            MapType::None => continue,
             _ => {
                 let parts: Vec<u64> = line.split(' ').map(|s| s.parse::<u64>().unwrap()).collect();
                 sps.push((parts[0], parts[1], parts[2]));
@@ -320,24 +320,31 @@ fn day_05() {
         val
     }
     for seed in seeds.iter() {
-        let mut cur = seed.clone();
+        let mut cur = *seed;
         for sp in spans.iter() {
             cur = check_span(cur, sp.clone());
         }
         locations.push(cur);
     }
-    let locations2 = spans2.par_iter().map(|seedr| {
-        let mut min_loc = u64::MAX;
-        for seed in seedr.0..seedr.0 + seedr.1 {
-            let mut cur = seed.clone();
-            for sp in spans.iter() {
-                cur = check_span(cur, sp.clone());
+    let locations2 = spans2
+        .par_iter()
+        .map(|seedr| {
+            let mut min_loc = u64::MAX;
+            for seed in seedr.0..seedr.0 + seedr.1 {
+                let mut cur = seed;
+                for sp in spans.iter() {
+                    cur = check_span(cur, sp.clone());
+                }
+                min_loc = min_loc.min(cur);
             }
-            min_loc = min_loc.min(cur);
-        }
-        min_loc
-    }).collect::<Vec<_>>();
-    println!("day05 {} {}", locations.iter().min().unwrap(), locations2.iter().min().unwrap());
+            min_loc
+        })
+        .collect::<Vec<_>>();
+    println!(
+        "day05 {} {}",
+        locations.iter().min().unwrap(),
+        locations2.iter().min().unwrap()
+    );
 }
 
 fn main() {
