@@ -274,29 +274,24 @@ fn day_05() {
     }
     spans.push(sps.clone());
     sps.clear();
-    fn check_span(val: u64, sps: Vec<Span>) -> u64 {
-        for sp in sps {
-            if (sp.1..sp.1 + sp.2).contains(&val) {
-                return sp.0 + (val - sp.1);
-            }
-        }
-        val
-    }
     let min_loc = seeds
         .iter()
         .map(|seed| {
-            let mut cur = *seed;
-            for sp in spans.iter() {
-                cur = check_span(cur, sp.clone());
-            }
-            cur
+            spans.iter().fold(*seed, |val, sps| {
+                for sp in sps {
+                    if (sp.1..sp.1 + sp.2).contains(&val) {
+                        return sp.0 + (val - sp.1);
+                    }
+                }
+                val
+            })
         })
         .min()
         .unwrap();
     type Rng = (u64, u64);
     type RngSet = (Rng, Rng);
     let seed_ranges: Vec<Rng> = seeds.chunks(2).map(|x| (x[0], x[0] + x[1])).collect();
-    let new_ranges: Vec<Rng> = spans
+    let min_loc2 = spans
         .iter()
         .map(|s| {
             s.iter()
@@ -340,12 +335,12 @@ fn day_05() {
                     reso
                 })
                 .collect()
-        });
-    println!(
-        "day05 {} {}",
-        min_loc,
-        new_ranges.iter().min_by_key(|x| x.0).unwrap().0
-    );
+        })
+        .iter()
+        .min_by_key(|x| x.0)
+        .unwrap()
+        .0;
+    println!("day05 {} {}", min_loc, min_loc2);
 }
 
 fn main() {
