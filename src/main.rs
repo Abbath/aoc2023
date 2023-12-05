@@ -391,15 +391,24 @@ fn day_05() {
         }
         resi.sort_by_key(|x| x.s);
         if resi[0].s > input_range.s {
-            reso.push(Rng{s: input_range.s, e: resi[0].s - 1})
+            reso.push(Rng {
+                s: input_range.s,
+                e: resi[0].s - 1,
+            })
         }
         for i in 1..resi.len() {
-            if resi[i].s - resi[i-1].e > 1 {
-                reso.push(Rng{s: resi[i-1].e + 1, e: resi[i].s - 1})
+            if resi[i].s - resi[i - 1].e > 1 {
+                reso.push(Rng {
+                    s: resi[i - 1].e + 1,
+                    e: resi[i].s - 1,
+                })
             }
         }
-        if resi[resi.len()-1].e < input_range.e {
-            reso.push(Rng{s: resi[resi.len()-1].e + 1, e: input_range.e})
+        if resi[resi.len() - 1].e < input_range.e {
+            reso.push(Rng {
+                s: resi[resi.len() - 1].e + 1,
+                e: input_range.e,
+            })
         }
         reso
     }
@@ -413,7 +422,11 @@ fn day_05() {
         new_ranges = new_new_ranges;
     }
     new_ranges.sort_by_key(|x| x.s);
-    println!("day05 {} {}", locations.iter().min().unwrap(), new_ranges[0].s);
+    println!(
+        "day05 {} {}",
+        locations.iter().min().unwrap(),
+        new_ranges[0].s
+    );
 }
 
 fn main() {
