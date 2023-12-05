@@ -295,65 +295,57 @@ fn day_05() {
         .unwrap();
     type Rng = (u64, u64);
     type RngSet = (Rng, Rng);
-    fn intersect_rs(s: Rng, other: RngSet) -> Option<RngSet> {
-        if s.1 < other.0 .0 || other.0 .1 < s.0 {
-            None
-        } else {
-            let input = (s.0.max(other.0 .0), s.1.min(other.0 .1));
-            Some((
-                input,
-                (
-                    other.1 .0 + (input.0 - other.0 .0),
-                    other.1 .1 - (other.0 .1 - input.1),
-                ),
-            ))
-        }
-    }
     let seed_ranges: Vec<Rng> = seeds.chunks(2).map(|x| (x[0], x[0] + x[1])).collect();
-    let span_ranges: Vec<Vec<RngSet>> = spans
+    let new_ranges: Vec<Rng> = spans
         .iter()
         .map(|s| {
             s.iter()
                 .map(|(d, s, o)| ((*s, s + o), (*d, d + o)))
                 .collect()
         })
-        .collect();
-    fn transmogrify(input_range: Rng, span_ranges: &[RngSet]) -> Vec<Rng> {
-        let mut reso: Vec<Rng> = Vec::new();
-        let mut resi: Vec<Rng> = Vec::new();
-        for range_set in span_ranges.iter() {
-            if let Some(r) = intersect_rs(input_range, *range_set) {
-                reso.push(r.1);
-                resi.push(r.0);
-            }
-        }
-        if reso.is_empty() {
-            reso.push(input_range);
-            return reso;
-        }
-        resi.sort_by_key(|x| x.0);
-        if resi[0].0 > input_range.0 {
-            reso.push((input_range.0, resi[0].0 - 1))
-        }
-        for i in 1..resi.len() {
-            if resi[i].0 - resi[i - 1].1 > 1 {
-                reso.push((resi[i - 1].1 + 1, resi[i].0 - 1))
-            }
-        }
-        if resi[resi.len() - 1].1 < input_range.1 {
-            reso.push((resi[resi.len() - 1].1 + 1, input_range.1))
-        }
-        reso
-    }
-    let mut new_ranges: Vec<Rng> = seed_ranges.clone();
-    for span_range in span_ranges.iter() {
-        new_ranges = new_ranges
-            .iter()
-            .flat_map(|in_range| transmogrify(*in_range, span_range))
-            .collect();
-    }
-    new_ranges.sort_by_key(|x| x.0);
-    println!("day05 {} {}", min_loc, new_ranges[0].0);
+        .fold(seed_ranges, |new_ranges, span_range: Vec<RngSet>| {
+            new_ranges
+                .iter()
+                .flat_map(|in_range| {
+                    let (mut resi, mut reso): (Vec<Rng>, Vec<Rng>) = span_range
+                        .iter()
+                        .flat_map(|rs| {
+                            if in_range.1 < rs.0 .0 || rs.0 .1 < in_range.0 {
+                                None
+                            } else {
+                                let input = (in_range.0.max(rs.0 .0), in_range.1.min(rs.0 .1));
+                                Some((
+                                    input,
+                                    (rs.1 .0 + (input.0 - rs.0 .0), rs.1 .1 - (rs.0 .1 - input.1)),
+                                ))
+                            }
+                        })
+                        .unzip();
+                    if reso.is_empty() {
+                        reso.push(*in_range);
+                        return reso;
+                    }
+                    resi.sort_by_key(|x| x.0);
+                    if resi[0].0 > in_range.0 {
+                        reso.push((in_range.0, resi[0].0 - 1))
+                    }
+                    for i in 1..resi.len() {
+                        if resi[i].0 - resi[i - 1].1 > 1 {
+                            reso.push((resi[i - 1].1 + 1, resi[i].0 - 1))
+                        }
+                    }
+                    if resi[resi.len() - 1].1 < in_range.1 {
+                        reso.push((resi[resi.len() - 1].1 + 1, in_range.1))
+                    }
+                    reso
+                })
+                .collect()
+        });
+    println!(
+        "day05 {} {}",
+        min_loc,
+        new_ranges.iter().min_by_key(|x| x.0).unwrap().0
+    );
 }
 
 fn main() {
