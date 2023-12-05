@@ -1,4 +1,3 @@
-use rayon::prelude::*;
 use std::collections::{HashMap, VecDeque};
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
@@ -326,25 +325,95 @@ fn day_05() {
         }
         locations.push(cur);
     }
-    let locations2 = spans2
-        .par_iter()
-        .map(|seedr| {
-            let mut min_loc = u64::MAX;
-            for seed in seedr.0..seedr.0 + seedr.1 {
-                let mut cur = seed;
-                for sp in spans.iter() {
-                    cur = check_span(cur, sp.clone());
-                }
-                min_loc = min_loc.min(cur);
+
+    #[derive(Debug, Clone, Copy)]
+    struct Rng {
+        s: u64,
+        e: u64,
+    }
+
+    #[derive(Debug, Clone, Copy)]
+    struct RngSet {
+        ir: Rng,
+        or: Rng,
+    }
+
+    impl Rng {
+        pub fn intersect_rs(self, other: RngSet) -> Option<RngSet> {
+            if self.e < other.ir.s || other.ir.e < self.s {
+                None
+            } else {
+                let input = Rng {
+                    s: self.s.max(other.ir.s),
+                    e: self.e.min(other.ir.e),
+                };
+                Some(RngSet {
+                    ir: input,
+                    or: Rng {
+                        s: other.or.s + (input.s - other.ir.s),
+                        e: other.or.e - (other.ir.e - input.e),
+                    },
+                })
             }
-            min_loc
+        }
+    }
+
+    let seed_ranges: Vec<Rng> = spans2
+        .iter()
+        .map(|x| Rng {
+            s: x.0,
+            e: x.0 + x.1,
         })
-        .collect::<Vec<_>>();
-    println!(
-        "day05 {} {}",
-        locations.iter().min().unwrap(),
-        locations2.iter().min().unwrap()
-    );
+        .collect();
+    let span_ranges: Vec<Vec<RngSet>> = spans
+        .iter()
+        .map(|s| {
+            s.iter()
+                .map(|(d, s, o)| RngSet {
+                    ir: Rng { s: *s, e: s + o },
+                    or: Rng { s: *d, e: d + o },
+                })
+                .collect()
+        })
+        .collect();
+    fn transmogrify(input_range: Rng, span_ranges: Vec<RngSet>) -> Vec<Rng> {
+        let mut reso: Vec<Rng> = Vec::new();
+        let mut resi: Vec<Rng> = Vec::new();
+        for range_set in span_ranges.iter() {
+            if let Some(r) = input_range.intersect_rs(*range_set) {
+                reso.push(r.or);
+                resi.push(r.ir);
+            }
+        }
+        if reso.is_empty() {
+            reso.push(input_range);
+            return reso;
+        }
+        resi.sort_by_key(|x| x.s);
+        if resi[0].s > input_range.s {
+            reso.push(Rng{s: input_range.s, e: resi[0].s - 1})
+        }
+        for i in 1..resi.len() {
+            if resi[i].s - resi[i-1].e > 1 {
+                reso.push(Rng{s: resi[i-1].e + 1, e: resi[i].s - 1})
+            }
+        }
+        if resi[resi.len()-1].e < input_range.e {
+            reso.push(Rng{s: resi[resi.len()-1].e + 1, e: input_range.e})
+        }
+        reso
+    }
+    let mut new_ranges: Vec<Rng> = seed_ranges.clone();
+    for span_range in span_ranges.iter() {
+        let mut new_new_ranges: Vec<Rng> = Vec::new();
+        for in_range in new_ranges.iter() {
+            let mut a = transmogrify(*in_range, span_range.clone());
+            new_new_ranges.append(&mut a);
+        }
+        new_ranges = new_new_ranges;
+    }
+    new_ranges.sort_by_key(|x| x.s);
+    println!("day05 {} {}", locations.iter().min().unwrap(), new_ranges[0].s);
 }
 
 fn main() {
