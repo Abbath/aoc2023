@@ -1,6 +1,7 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
+use rayon::prelude::*;
 
 fn day_01() {
     let file = File::open("input/input_01.txt").unwrap();
@@ -160,8 +161,189 @@ fn day_03() {
     println!("day03 {sum} {sum2}");
 }
 
+fn day_04() {
+    let file = File::open("input/input_04.txt").unwrap();
+    let reader = BufReader::new(file);
+    let lines: Vec<String> = reader.lines().flatten().collect();
+    let mut sum = 0;
+    struct Game {
+        id: i32,
+        win: Vec<i32>,
+        nums: Vec<i32>,
+    }
+    let mut games: Vec<Game> = Vec::new();
+    let mut found: VecDeque<i32> = VecDeque::new();
+    for line in lines.iter() {
+        let parts = line
+            .split(' ')
+            .filter(|&s| !s.is_empty())
+            .collect::<Vec<&str>>();
+        let game_num = parts[1][..parts[1].len() - 1].parse::<i32>().unwrap();
+        let mut found_bar = false;
+        let mut worth = 0;
+        let mut g = Game {
+            id: game_num,
+            win: Vec::new(),
+            nums: Vec::new(),
+        };
+        let mut counter = 1;
+        for part in parts.iter().skip(2) {
+            if part == &"|" {
+                found_bar = true;
+                continue;
+            }
+            if let Ok(num) = part.parse::<i32>() {
+                if !found_bar {
+                    g.win.push(num);
+                } else {
+                    g.nums.push(num);
+                    if g.win.contains(&num) {
+                        found.push_back(game_num + counter);
+                        counter += 1;
+                        worth = if worth == 0 { 1 } else { worth * 2 };
+                    }
+                }
+            }
+        }
+        games.push(g);
+        sum += worth;
+    }
+    let mut cards: HashMap<i32, i32> = games.iter().map(|g| (g.id, 1)).collect();
+    for f in found.iter() {
+        *cards.entry(*f).or_insert(0) += 1;
+    }
+    while !found.is_empty() {
+        let n = found.pop_front().unwrap();
+        let mut counter = 1;
+        for m in games[n as usize - 1].nums.iter() {
+            if games[n as usize - 1].win.contains(m) {
+                *cards.entry(games[n as usize - 1].id + counter).or_default() += 1;
+                found.push_back(games[n as usize - 1].id + counter);
+                counter += 1;
+            }
+        }
+    }
+    let sum2 = cards.iter().fold(0, |acc, (_, v)| acc + v);
+    println!("day04 {sum} {sum2}");
+}
+
+fn day_05() {
+    let file = File::open("input/input_05.txt").unwrap();
+    let reader = BufReader::new(file);
+    let lines: Vec<String> = reader.lines().flatten().collect();
+    let mut seeds: Vec<u64> = Vec::new();
+    type Span = (u64, u64, u64);
+    enum MapType {
+        NONE,
+        STS,
+        STF,
+        FTW,
+        WTL,
+        LTT,
+        TTH,
+        HTL,
+    }
+    let mut spans: Vec<Vec<Span>> = Vec::new();
+    let mut spans2: Vec<(u64, u64)> = Vec::new();
+    let mut sps: Vec<Span> = Vec::new();
+    let mut flag = MapType::NONE;
+    for line in lines.iter() {
+        if line.is_empty() {
+            continue;
+        }
+        if line.starts_with("seeds:") {
+            seeds = line
+                .split(' ')
+                .skip(1)
+                .map(|s| s.parse::<u64>().unwrap())
+                .collect();
+
+            spans2 = seeds.chunks(2).map(|s| (s[0], s[1])).collect();
+        }
+        if line.starts_with("seed-to-soil") {
+            flag = MapType::STS;
+            continue;
+        }
+        if line.starts_with("soil-to-fertilizer") {
+            flag = MapType::STF;
+            spans.push(sps.clone());
+            sps.clear();
+            continue;
+        }
+        if line.starts_with("fertilizer-to-water") {
+            flag = MapType::FTW;
+            spans.push(sps.clone());
+            sps.clear();
+            continue;
+        }
+        if line.starts_with("water-to-light") {
+            flag = MapType::WTL;
+            spans.push(sps.clone());
+            sps.clear();
+            continue;
+        }
+        if line.starts_with("light-to-temperature") {
+            flag = MapType::LTT;
+            spans.push(sps.clone());
+            sps.clear();
+            continue;
+        }
+        if line.starts_with("temperature-to-humidity") {
+            flag = MapType::TTH;
+            spans.push(sps.clone());
+            sps.clear();
+            continue;
+        }
+        if line.starts_with("humidity-to-location") {
+            flag = MapType::HTL;
+            spans.push(sps.clone());
+            sps.clear();
+            continue;
+        }
+        match flag {
+            MapType::NONE => continue,
+            _ => {
+                let parts: Vec<u64> = line.split(' ').map(|s| s.parse::<u64>().unwrap()).collect();
+                sps.push((parts[0], parts[1], parts[2]));
+            }
+        }
+    }
+    spans.push(sps.clone());
+    sps.clear();
+    let mut locations: Vec<u64> = Vec::new();
+    fn check_span(val: u64, sps: Vec<Span>) -> u64 {
+        for sp in sps {
+            if (sp.1..sp.1 + sp.2).contains(&val) {
+                return sp.0 + (val - sp.1);
+            }
+        }
+        val
+    }
+    for seed in seeds.iter() {
+        let mut cur = seed.clone();
+        for sp in spans.iter() {
+            cur = check_span(cur, sp.clone());
+        }
+        locations.push(cur);
+    }
+    let locations2 = spans2.par_iter().map(|seedr| {
+        let mut min_loc = u64::MAX;
+        for seed in seedr.0..seedr.0 + seedr.1 {
+            let mut cur = seed.clone();
+            for sp in spans.iter() {
+                cur = check_span(cur, sp.clone());
+            }
+            min_loc = min_loc.min(cur);
+        }
+        min_loc
+    }).collect::<Vec<_>>();
+    println!("day05 {} {}", locations.iter().min().unwrap(), locations2.iter().min().unwrap());
+}
+
 fn main() {
     day_01();
     day_02();
     day_03();
+    day_04();
+    day_05();
 }
