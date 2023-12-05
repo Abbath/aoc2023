@@ -10,42 +10,48 @@ fn day_01() {
         "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
     ];
     let less_shitty_numbers = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
-    let mut sum: i32 = 0;
-    for line in lines.iter() {
-        let mut first: i32 = -1;
-        let mut last: i32 = -1;
-        for ch in line.chars() {
-            if first == -1 && ch.is_ascii_digit() {
-                first = ch.to_digit(10).unwrap() as i32;
-            } else if ch.is_ascii_digit() {
-                last = ch.to_digit(10).unwrap() as i32;
+    let sum: i32 = lines
+        .iter()
+        .map(|line| {
+            let first: i32 = line
+                .chars()
+                .find(|c| c.is_ascii_digit())
+                .unwrap()
+                .to_digit(10)
+                .unwrap() as i32;
+            let last: i32 = line
+                .chars()
+                .rfind(|c| c.is_ascii_digit())
+                .unwrap()
+                .to_digit(10)
+                .unwrap() as i32;
+            first * 10 + if last != -1 { last } else { first }
+        })
+        .sum();
+    let sum2: i32 = lines
+        .iter()
+        .map(|line| {
+            let mut numbas: Vec<(usize, usize)> = Vec::new();
+            for (i, sn) in shitty_numbers.iter().enumerate() {
+                if let Some(n) = line.find(sn) {
+                    numbas.push((i + 1, n));
+                }
+                if let Some(n) = line.rfind(sn) {
+                    numbas.push((i + 1, n));
+                }
             }
-        }
-        sum += first * 10 + if last != -1 { last } else { first };
-    }
-    let mut sum2: i32 = 0;
-    for line in lines.iter() {
-        let mut numbas: Vec<(usize, usize)> = Vec::new();
-        for (i, sn) in shitty_numbers.iter().enumerate() {
-            if let Some(n) = line.find(sn) {
-                numbas.push((i + 1, n));
+            for (i, lsn) in less_shitty_numbers.iter().enumerate() {
+                if let Some(n) = line.find(lsn) {
+                    numbas.push((i + 1, n));
+                }
+                if let Some(n) = line.rfind(lsn) {
+                    numbas.push((i + 1, n));
+                }
             }
-            if let Some(n) = line.rfind(sn) {
-                numbas.push((i + 1, n));
-            }
-        }
-        for (i, lsn) in less_shitty_numbers.iter().enumerate() {
-            if let Some(n) = line.find(lsn) {
-                numbas.push((i + 1, n));
-            }
-            if let Some(n) = line.rfind(lsn) {
-                numbas.push((i + 1, n));
-            }
-        }
-        numbas.sort_by(|(_, n1), (_, n2)| n1.cmp(n2));
-        let tmp = (numbas.first().unwrap().0 * 10 + numbas.last().unwrap().0) as i32;
-        sum2 += tmp;
-    }
+            numbas.sort_by(|(_, n1), (_, n2)| n1.cmp(n2));
+            (numbas.first().unwrap().0 * 10 + numbas.last().unwrap().0) as i32
+        })
+        .sum();
     println!("day01 {sum} {sum2}");
 }
 
@@ -169,6 +175,7 @@ fn day_04() {
         id: i32,
         win: Vec<i32>,
         nums: Vec<i32>,
+        winnum: Option<i32>,
     }
     let mut games: Vec<Game> = Vec::new();
     let mut found: VecDeque<i32> = VecDeque::new();
@@ -184,6 +191,7 @@ fn day_04() {
             id: game_num,
             win: Vec::new(),
             nums: Vec::new(),
+            winnum: None,
         };
         let mut counter = 1;
         for part in parts.iter().skip(2) {
@@ -207,22 +215,24 @@ fn day_04() {
         games.push(g);
         sum += worth;
     }
-    let mut cards: HashMap<i32, i32> = games.iter().map(|g| (g.id, 1)).collect();
-    for f in found.iter() {
-        *cards.entry(*f).or_insert(0) += 1;
-    }
+    let mut sum2 = games.len() + found.len();
     while !found.is_empty() {
         let n = found.pop_front().unwrap();
-        let mut counter = 1;
-        for m in games[n as usize - 1].nums.iter() {
-            if games[n as usize - 1].win.contains(m) {
-                *cards.entry(games[n as usize - 1].id + counter).or_default() += 1;
-                found.push_back(games[n as usize - 1].id + counter);
-                counter += 1;
-            }
-        }
+        let g = &mut games[n as usize - 1];
+        let new = if let Some(n) = g.winnum {
+            n
+        } else {
+            let n = g
+                .win
+                .iter()
+                .map(|m| if g.nums.contains(m) { 1 } else { 0 })
+                .sum();
+            g.winnum = Some(n);
+            n
+        };
+        found.append(&mut VecDeque::from_iter(g.id + 1..=g.id + new));
+        sum2 += new as usize;
     }
-    let sum2 = cards.iter().fold(0, |acc, (_, v)| acc + v);
     println!("day04 {sum} {sum2}");
 }
 
@@ -232,84 +242,38 @@ fn day_05() {
     let lines: Vec<String> = reader.lines().flatten().collect();
     let mut seeds: Vec<u64> = Vec::new();
     type Span = (u64, u64, u64);
-    enum MapType {
-        None,
-        Sts,
-        Stf,
-        Ftw,
-        Wtl,
-        Ltt,
-        Tth,
-        Htl,
-    }
     let mut spans: Vec<Vec<Span>> = Vec::new();
-    let mut spans2: Vec<(u64, u64)> = Vec::new();
     let mut sps: Vec<Span> = Vec::new();
-    let mut flag = MapType::None;
+    let mut flag = false;
+    let mut skip = false;
     for line in lines.iter() {
-        if line.is_empty() {
-            continue;
-        }
         if line.starts_with("seeds:") {
             seeds = line
                 .split(' ')
                 .skip(1)
                 .map(|s| s.parse::<u64>().unwrap())
                 .collect();
-
-            spans2 = seeds.chunks(2).map(|s| (s[0], s[1])).collect();
-        }
-        if line.starts_with("seed-to-soil") {
-            flag = MapType::Sts;
             continue;
         }
-        if line.starts_with("soil-to-fertilizer") {
-            flag = MapType::Stf;
-            spans.push(sps.clone());
-            sps.clear();
+        if skip {
+            skip = false;
             continue;
         }
-        if line.starts_with("fertilizer-to-water") {
-            flag = MapType::Ftw;
-            spans.push(sps.clone());
-            sps.clear();
-            continue;
-        }
-        if line.starts_with("water-to-light") {
-            flag = MapType::Wtl;
-            spans.push(sps.clone());
-            sps.clear();
-            continue;
-        }
-        if line.starts_with("light-to-temperature") {
-            flag = MapType::Ltt;
-            spans.push(sps.clone());
-            sps.clear();
-            continue;
-        }
-        if line.starts_with("temperature-to-humidity") {
-            flag = MapType::Tth;
-            spans.push(sps.clone());
-            sps.clear();
-            continue;
-        }
-        if line.starts_with("humidity-to-location") {
-            flag = MapType::Htl;
-            spans.push(sps.clone());
-            sps.clear();
-            continue;
-        }
-        match flag {
-            MapType::None => continue,
-            _ => {
-                let parts: Vec<u64> = line.split(' ').map(|s| s.parse::<u64>().unwrap()).collect();
-                sps.push((parts[0], parts[1], parts[2]));
+        if line.is_empty() {
+            if !flag {
+                flag = true;
+            } else {
+                spans.push(sps.clone());
+                sps.clear();
             }
+            skip = true;
+            continue;
         }
+        let parts: Vec<u64> = line.split(' ').map(|s| s.parse::<u64>().unwrap()).collect();
+        sps.push((parts[0], parts[1], parts[2]));
     }
     spans.push(sps.clone());
     sps.clear();
-    let mut locations: Vec<u64> = Vec::new();
     fn check_span(val: u64, sps: Vec<Span>) -> u64 {
         for sp in sps {
             if (sp.1..sp.1 + sp.2).contains(&val) {
@@ -318,13 +282,17 @@ fn day_05() {
         }
         val
     }
-    for seed in seeds.iter() {
-        let mut cur = *seed;
-        for sp in spans.iter() {
-            cur = check_span(cur, sp.clone());
-        }
-        locations.push(cur);
-    }
+    let min_loc = seeds
+        .iter()
+        .map(|seed| {
+            let mut cur = *seed;
+            for sp in spans.iter() {
+                cur = check_span(cur, sp.clone());
+            }
+            cur
+        })
+        .min()
+        .unwrap();
 
     #[derive(Debug, Clone, Copy)]
     struct Rng {
@@ -358,11 +326,11 @@ fn day_05() {
         }
     }
 
-    let seed_ranges: Vec<Rng> = spans2
-        .iter()
+    let seed_ranges: Vec<Rng> = seeds
+        .chunks(2)
         .map(|x| Rng {
-            s: x.0,
-            e: x.0 + x.1,
+            s: x[0],
+            e: x[0] + x[1],
         })
         .collect();
     let span_ranges: Vec<Vec<RngSet>> = spans
@@ -376,7 +344,7 @@ fn day_05() {
                 .collect()
         })
         .collect();
-    fn transmogrify(input_range: Rng, span_ranges: Vec<RngSet>) -> Vec<Rng> {
+    fn transmogrify(input_range: Rng, span_ranges: &Vec<RngSet>) -> Vec<Rng> {
         let mut reso: Vec<Rng> = Vec::new();
         let mut resi: Vec<Rng> = Vec::new();
         for range_set in span_ranges.iter() {
@@ -414,19 +382,14 @@ fn day_05() {
     }
     let mut new_ranges: Vec<Rng> = seed_ranges.clone();
     for span_range in span_ranges.iter() {
-        let mut new_new_ranges: Vec<Rng> = Vec::new();
-        for in_range in new_ranges.iter() {
-            let mut a = transmogrify(*in_range, span_range.clone());
-            new_new_ranges.append(&mut a);
-        }
-        new_ranges = new_new_ranges;
+        new_ranges = new_ranges
+            .iter()
+            .map(|in_range| transmogrify(*in_range, span_range))
+            .flatten()
+            .collect();
     }
     new_ranges.sort_by_key(|x| x.s);
-    println!(
-        "day05 {} {}",
-        locations.iter().min().unwrap(),
-        new_ranges[0].s
-    );
+    println!("day05 {} {}", min_loc, new_ranges[0].s);
 }
 
 fn main() {
