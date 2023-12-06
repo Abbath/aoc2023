@@ -350,32 +350,31 @@ fn day_06() {
     let lines: Vec<String> = reader.lines().flatten().collect();
     let parser = |line: &str| {
         line.split(' ')
-            .filter_map(|s| s.parse::<u64>().ok())
+            .filter_map(|s| s.parse::<f64>().ok())
             .collect::<Vec<_>>()
     };
     let times = parser(&lines[0]);
     let distances = parser(&lines[1]);
+    let solver = |t: f64, d: f64| {
+        let ds = t * t - 4.0 * d;
+        let x1 = (-t + ds.sqrt()) / -2.0;
+        let x2 = (-t - ds.sqrt()) / -2.0;
+        x2.floor() - x1.ceil() + 1.0
+    };
     let product = zip(&times, &distances)
-        .map(|(t, d)| {
-            (0..=*t)
-                .map(|ta| if ta * (t - ta) > *d { 1 } else { 0 })
-                .sum::<u64>()
-        })
-        .product::<u64>();
-    let joiner = |v: Vec<u64>| {
+        .map(|(&t, &d)| solver(t, d))
+        .product::<f64>();
+    let joiner = |v: Vec<f64>| {
         v.iter()
             .map(|x| x.to_string())
             .collect::<Vec<_>>()
             .join("")
-            .parse::<u64>()
+            .parse::<f64>()
             .unwrap()
     };
     let time = joiner(times);
-    let distance: u64 = joiner(distances);
-    let sum = (0..=time)
-        .map(|ta| if ta * (time - ta) > distance { 1 } else { 0 })
-        .sum::<u64>();
-    println!("day06 {product} {sum}");
+    let distance = joiner(distances);
+    println!("day06 {product} {}", solver(time, distance));
 }
 
 fn main() {
