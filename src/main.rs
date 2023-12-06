@@ -1,6 +1,7 @@
 use std::collections::{HashMap, VecDeque};
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
+use std::iter::zip;
 
 fn day_01() {
     let file = File::open("input/input_01.txt").unwrap();
@@ -343,10 +344,45 @@ fn day_05() {
     println!("day05 {} {}", min_loc, min_loc2);
 }
 
+fn day_06() {
+    let file = File::open("input/input_06.txt").unwrap();
+    let reader = BufReader::new(file);
+    let lines: Vec<String> = reader.lines().flatten().collect();
+    let parser = |line: &str| {
+        line.split(' ')
+            .filter_map(|s| s.parse::<u64>().ok())
+            .collect::<Vec<_>>()
+    };
+    let times = parser(&lines[0]);
+    let distances = parser(&lines[1]);
+    let product = zip(&times, &distances)
+        .map(|(t, d)| {
+            (0..=*t)
+                .map(|ta| if ta * (t - ta) > *d { 1 } else { 0 })
+                .sum::<u64>()
+        })
+        .product::<u64>();
+    let joiner = |v: Vec<u64>| {
+        v.iter()
+            .map(|x| x.to_string())
+            .collect::<Vec<_>>()
+            .join("")
+            .parse::<u64>()
+            .unwrap()
+    };
+    let time = joiner(times);
+    let distance: u64 = joiner(distances);
+    let sum = (0..=time)
+        .map(|ta| if ta * (time - ta) > distance { 1 } else { 0 })
+        .sum::<u64>();
+    println!("day06 {product} {sum}");
+}
+
 fn main() {
     day_01();
     day_02();
     day_03();
     day_04();
     day_05();
+    day_06();
 }
