@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::collections::{HashMap, VecDeque};
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
@@ -377,6 +378,156 @@ fn day_06() {
     println!("day06 {product} {}", solver(time, distance));
 }
 
+fn day_07() {
+    let file = File::open("input/input_07.txt").unwrap();
+    let reader = BufReader::new(file);
+    let lines: Vec<String> = reader.lines().flatten().collect();
+    #[derive(Debug, PartialEq, PartialOrd, Eq, Ord)]
+    enum HandType {
+        HighCard,
+        OnePair,
+        TwoPair,
+        ThreeOfAKind,
+        FullHouse,
+        FourOfAKind,
+        FiveOfAKind,
+    }
+    #[derive(Debug, PartialEq, Eq)]
+    struct Hand {
+        typ: HandType,
+        cards: Vec<u32>,
+        bid: u32,
+    }
+    impl std::cmp::PartialOrd for Hand {
+        fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+            if self.typ != other.typ {
+                return self.typ.partial_cmp(&other.typ);
+            } else {
+                for (c1, c2) in zip(&self.cards, &other.cards) {
+                    if c1 != c2 {
+                        return c1.partial_cmp(&c2);
+                    }
+                }
+                return Some(Ordering::Equal);
+            }
+        }
+    }
+    impl std::cmp::Ord for Hand {
+        fn cmp(&self, other: &Self) -> Ordering {
+            self.partial_cmp(other).unwrap()
+        }
+    }
+    let ctc = |c: char, part_two: bool| -> u32 {
+        match c {
+            '2'..='9' => c.to_digit(10).unwrap(),
+            'T' => 10,
+            'J' => {
+                if part_two {
+                    1
+                } else {
+                    11
+                }
+            }
+            'Q' => 12,
+            'K' => 13,
+            'A' => 14,
+            _ => 0,
+        }
+    };
+    let decide_type = |cs: &Vec<u32>| -> HandType {
+        let mut hist: HashMap<u32, u32> = HashMap::new();
+        for c in cs {
+            *hist.entry(*c).or_default() += 1;
+        }
+        let vals = hist.values().map(|x| *x).collect::<Vec<u32>>();
+        if vals.contains(&5) {
+            HandType::FiveOfAKind
+        } else if vals.contains(&4) {
+            HandType::FourOfAKind
+        } else if vals.contains(&3) && vals.contains(&2) {
+            HandType::FullHouse
+        } else if vals.contains(&3) {
+            HandType::ThreeOfAKind
+        } else if vals.iter().filter(|x| *x == &2).count() == 2 {
+            HandType::TwoPair
+        } else if vals.contains(&2) {
+            HandType::OnePair
+        } else {
+            HandType::HighCard
+        }
+    };
+    let decide_type2 = |cs: &Vec<u32>| -> HandType {
+        let mut hist: HashMap<u32, u32> = HashMap::new();
+        for c in cs {
+            *hist.entry(*c).or_default() += 1;
+        }
+        if !hist.contains_key(&1) {
+            return decide_type(cs);
+        }
+        let jc = hist[&1];
+        hist.remove(&1);
+        let vals = hist.values().map(|x| *x).collect::<Vec<u32>>();
+        let vc5 = vals.contains(&5);
+        let vc4 = vals.contains(&4);
+        let vc3 = vals.contains(&3);
+        let vc2 = vals.contains(&2);
+        let vc1 = vals.contains(&1);
+        let vc22 = vals.iter().filter(|x| *x == &2).count() == 2;
+        if vc5 || jc == 5 || vc4 && jc == 1 || vc3 && jc == 2 || vc2 && jc == 3 || vc1 && jc == 4 {
+            HandType::FiveOfAKind
+        } else if vc4 || vc3 && jc == 1 || vc2 && jc == 2 || vc1 && jc == 3 || jc == 4 {
+            HandType::FourOfAKind
+        } else if vc3 && vc2
+            || vc3 && jc == 2
+            || vc2 && jc == 3
+            || vc3 && vc1 && jc == 1
+            || vc22 && jc == 1
+        {
+            HandType::FullHouse
+        } else if vc3 || vc2 && jc == 1 || vc1 && jc == 2 || jc == 3 {
+            HandType::ThreeOfAKind
+        } else if vc22 || vc2 && jc == 2 || vc2 && vc1 && jc == 1 {
+            HandType::TwoPair
+        } else if vc2 || vc1 && jc == 1 || jc == 2 {
+            HandType::OnePair
+        } else {
+            HandType::HighCard
+        }
+    };
+    let (mut hands, mut hands2): (Vec<Hand>, Vec<Hand>) = lines
+        .iter()
+        .map(|line| {
+            let parts = line.split(' ').collect::<Vec<_>>();
+            let v1: Vec<u32> = parts[0].chars().map(|c| ctc(c, false)).collect();
+            let v2: Vec<u32> = parts[0].chars().map(|c| ctc(c, true)).collect();
+            let bid = parts[1].parse::<u32>().unwrap();
+            (
+                Hand {
+                    typ: decide_type(&v1),
+                    cards: v1,
+                    bid: bid,
+                },
+                Hand {
+                    typ: decide_type2(&v2),
+                    cards: v2,
+                    bid: bid,
+                },
+            )
+        })
+        .unzip();
+    hands.sort();
+    hands2.sort();
+    let compute = |hs: Vec<Hand>| {
+        hs.iter()
+            .enumerate()
+            .map(|(i, x)| (i + 1) as u32 * x.bid)
+            .sum::<u32>()
+    };
+    let sum = compute(hands);
+    let sum2 = compute(hands2);
+    println!("day07 {sum} {sum2}");
+}
+
 fn main() {
     day_01();
     day_02();
@@ -384,4 +535,5 @@ fn main() {
     day_04();
     day_05();
     day_06();
+    day_07();
 }
