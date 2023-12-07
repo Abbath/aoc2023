@@ -1,4 +1,3 @@
-use std::cmp::Ordering;
 use std::collections::{HashMap, VecDeque};
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
@@ -392,30 +391,11 @@ fn day_07() {
         FourOfAKind,
         FiveOfAKind,
     }
-    #[derive(Debug, PartialEq, Eq)]
+    #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
     struct Hand {
         typ: HandType,
         cards: Vec<u32>,
         bid: u32,
-    }
-    impl std::cmp::PartialOrd for Hand {
-        fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-            if self.typ != other.typ {
-                return self.typ.partial_cmp(&other.typ);
-            } else {
-                for (c1, c2) in zip(&self.cards, &other.cards) {
-                    if c1 != c2 {
-                        return c1.partial_cmp(&c2);
-                    }
-                }
-                return Some(Ordering::Equal);
-            }
-        }
-    }
-    impl std::cmp::Ord for Hand {
-        fn cmp(&self, other: &Self) -> Ordering {
-            self.partial_cmp(other).unwrap()
-        }
     }
     let ctc = |c: char, part_two: bool| -> u32 {
         match c {
@@ -439,7 +419,7 @@ fn day_07() {
         for c in cs {
             *hist.entry(*c).or_default() += 1;
         }
-        let vals = hist.values().map(|x| *x).collect::<Vec<u32>>();
+        let vals = hist.values().copied().collect::<Vec<u32>>();
         if vals.contains(&5) {
             HandType::FiveOfAKind
         } else if vals.contains(&4) {
@@ -466,7 +446,7 @@ fn day_07() {
         }
         let jc = hist[&1];
         hist.remove(&1);
-        let vals = hist.values().map(|x| *x).collect::<Vec<u32>>();
+        let vals: Vec<_> = hist.values().copied().collect();
         let vc5 = vals.contains(&5);
         let vc4 = vals.contains(&4);
         let vc3 = vals.contains(&3);
@@ -477,8 +457,7 @@ fn day_07() {
             HandType::FiveOfAKind
         } else if vc4 || vc3 && jc == 1 || vc2 && jc == 2 || vc1 && jc == 3 || jc == 4 {
             HandType::FourOfAKind
-        } else if vc3 && vc2
-            || vc3 && jc == 2
+        } else if (jc == 2 || vc2) && vc3
             || vc2 && jc == 3
             || vc3 && vc1 && jc == 1
             || vc22 && jc == 1
@@ -505,12 +484,12 @@ fn day_07() {
                 Hand {
                     typ: decide_type(&v1),
                     cards: v1,
-                    bid: bid,
+                    bid,
                 },
                 Hand {
                     typ: decide_type2(&v2),
                     cards: v2,
-                    bid: bid,
+                    bid,
                 },
             )
         })
