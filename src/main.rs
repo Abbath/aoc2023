@@ -507,6 +507,81 @@ fn day_07() {
     println!("day07 {sum} {sum2}");
 }
 
+fn day_08() {
+    let file = File::open("input/input_08.txt").unwrap();
+    let reader = BufReader::new(file);
+    let lines: Vec<String> = reader.lines().flatten().collect();
+    let directions = lines[0].chars().collect::<Vec<_>>();
+    let mapping = lines
+        .iter()
+        .skip(2)
+        .map(|line| {
+            let parts = line.split(' ').collect::<Vec<_>>();
+            let key = parts[0].to_string();
+            let value = (
+                parts[2].trim_matches('(').trim_matches(','),
+                parts[3].trim_matches(')'),
+            );
+            (key, value)
+        })
+        .collect::<HashMap<_, _>>();
+    let mut current = "AAA";
+    let mut offset = 0;
+    let mut counter = 0;
+    while current != "ZZZ" {
+        let dir = directions[offset];
+        if dir == 'L' {
+            current = mapping[current].0;
+        } else {
+            current = mapping[current].1;
+        }
+        offset = (offset + 1) % directions.len();
+        counter += 1;
+    }
+    let mut currents = mapping
+        .keys()
+        .filter(|s| s.ends_with('A'))
+        .map(|s| s.to_owned())
+        .collect::<Vec<_>>();
+    offset = 0;
+    let mut counter2 = 0;
+    let mut counters = vec![0; currents.len()];
+    while !counters.iter().all(|x| *x > 0) {
+        counter2 += 1;
+        let dir = directions[offset];
+        currents.iter_mut().enumerate().for_each(|(i, s)| {
+            if dir == 'L' {
+                *s = mapping[s].0.to_string();
+            } else {
+                *s = mapping[s].1.to_string();
+            };
+            if s.ends_with('Z') {
+                counters[i] = counter2
+            };
+        });
+        offset = (offset + 1) % directions.len();
+    }
+    use std::cmp::{max, min};
+    fn gcd(a: usize, b: usize) -> usize {
+        match ((a, b), (a & 1, b & 1)) {
+            ((x, y), _) if x == y => y,
+            ((0, x), _) | ((x, 0), _) => x,
+            ((x, y), (0, 1)) | ((y, x), (1, 0)) => gcd(x >> 1, y),
+            ((x, y), (0, 0)) => gcd(x >> 1, y >> 1) << 1,
+            ((x, y), (1, 1)) => {
+                let (x, y) = (min(x, y), max(x, y));
+                gcd((y - x) >> 1, x)
+            }
+            _ => unreachable!(),
+        }
+    }
+    fn lcm(a: usize, b: usize) -> usize {
+        a * b / gcd(a, b)
+    }
+    let a2 = counters.iter().fold(1, |acc, c| lcm(acc, *c));
+    println!("day08 {counter} {a2}");
+}
+
 fn main() {
     day_01();
     day_02();
@@ -515,4 +590,5 @@ fn main() {
     day_05();
     day_06();
     day_07();
+    day_08();
 }
