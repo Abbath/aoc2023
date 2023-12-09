@@ -582,6 +582,53 @@ fn day_08() {
     println!("day08 {counter} {a2}");
 }
 
+fn day_09() {
+    let file = File::open("input/input_09.txt").unwrap();
+    let reader = BufReader::new(file);
+    let lines: Vec<String> = reader.lines().flatten().collect();
+    let (nexts, prevs): (Vec<i64>, Vec<i64>) = lines
+        .iter()
+        .map(|line| {
+            let values = line
+                .split(' ')
+                .map(|x| x.parse::<i64>().unwrap())
+                .collect::<Vec<_>>();
+            let mut diffs: Vec<Vec<i64>> = Vec::new();
+            diffs.push(values);
+            loop {
+                let last_diff = diffs.last().unwrap();
+                let diff = (1..last_diff.len())
+                    .map(|i| last_diff[i] - last_diff[i - 1])
+                    .collect::<Vec<_>>();
+                if diff.iter().all(|x| *x == 0) {
+                    break;
+                }
+                diffs.push(diff);
+            }
+            let mut next = 0;
+            let mut prev = 0;
+            for diff in diffs.iter().rev() {
+                let last = diff.last().unwrap();
+                let first = diff.first().unwrap();
+                if next == 0 {
+                    next = *last;
+                } else {
+                    next += last;
+                }
+                if prev == 0 {
+                    prev = *first;
+                } else {
+                    prev = first - prev;
+                }
+            }
+            (next, prev)
+        })
+        .unzip();
+    let sum: i64 = nexts.iter().sum();
+    let sum2: i64 = prevs.iter().sum();
+    println!("day09 {sum} {sum2}");
+}
+
 fn main() {
     day_01();
     day_02();
@@ -591,4 +638,5 @@ fn main() {
     day_06();
     day_07();
     day_08();
+    day_09();
 }
