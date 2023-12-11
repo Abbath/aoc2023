@@ -666,8 +666,8 @@ fn day_10() {
     };
     let at = |mat: &Vec<char>, x, y| mat[y * w + x];
     let mut from_to = (0, 0, 0, 0);
-    let left_bois = "S-J7";
-    let right_bois = "S-LF";
+    let left_bois = "S-LF";
+    let right_bois = "S-J7";
     let top_bois = "S|JL";
     let bottom_bois = "S|7F";
     loop {
@@ -675,7 +675,7 @@ fn day_10() {
         for &(x2, y2) in neighbors.iter() {
             let a = at(&mat, x, y);
             let a2 = at(&mat, x2, y2);
-            if x2 > x && right_bois.contains(a) && left_bois.contains(a2) {
+            if x2 > x && left_bois.contains(a) && right_bois.contains(a2) {
                 if a == 'S' {
                     from_to.0 = 1;
                 }
@@ -686,7 +686,7 @@ fn day_10() {
                 x = x2;
                 break;
             }
-            if x2 < x && left_bois.contains(a) && right_bois.contains(a2) {
+            if x2 < x && right_bois.contains(a) && left_bois.contains(a2) {
                 if a == 'S' {
                     from_to.0 = -1;
                 }
@@ -776,7 +776,7 @@ fn day_11() {
     let compute = |gs: &Vec<(usize, usize)>, offset: usize| {
         let mut sum = 0usize;
         for (n, g1) in gs.iter().enumerate() {
-            for g2 in gs.iter().skip(n) {
+            for g2 in gs.iter().skip(n + 1) {
                 let row_range = (g1.0.min(g2.0), g1.0.max(g2.0));
                 let col_range = (g1.1.min(g2.1), g1.1.max(g2.1));
                 let row_add = empty_rows
