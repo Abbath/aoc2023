@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
 use std::iter::zip;
@@ -828,6 +828,63 @@ fn day_10() {
     println!("day10 {} {}", lopp.len() / 2, sum);
 }
 
+fn day_11() {
+    let file = File::open("input/input_11.txt").unwrap();
+    let reader = BufReader::new(file);
+    let lines: Vec<String> = reader.lines().flatten().collect();
+    let mut galaxies: Vec<(usize, usize)> = Vec::new();
+    let mut empty_rows: HashSet<usize> = HashSet::new();
+    let mut empty_cols: HashSet<usize> = (0..lines[0].len()).collect();
+    for (row, line) in lines.iter().enumerate() {
+        empty_rows.insert(row);
+        for (col, c) in line.chars().enumerate() {
+            if c == '#' {
+                galaxies.push((row, col));
+                empty_rows.remove(&row);
+                empty_cols.remove(&col);
+            }
+        }
+    }
+    let compute = |gs: &Vec<(usize, usize)>, offset: usize| {
+        let mut sum = 0usize;
+        for (n, g1) in gs.iter().enumerate() {
+            for g2 in gs.iter().skip(n) {
+                let row_range = (g1.0.min(g2.0), g1.0.max(g2.0));
+                let col_range = (g1.1.min(g2.1), g1.1.max(g2.1));
+                let row_add = empty_rows
+                    .iter()
+                    .map(|r| {
+                        if (row_range.0 + 1..row_range.1).contains(r) {
+                            offset - 1
+                        } else {
+                            0
+                        }
+                    })
+                    .sum::<usize>();
+                let col_add = empty_cols
+                    .iter()
+                    .map(|c| {
+                        if (col_range.0 + 1..col_range.1).contains(c) {
+                            offset - 1
+                        } else {
+                            0
+                        }
+                    })
+                    .sum::<usize>();
+                sum +=
+                    (row_range.1 - row_range.0) + (col_range.1 - col_range.0) + row_add + col_add;
+            }
+        }
+
+        sum
+    };
+    println!(
+        "day11 {} {}",
+        compute(&galaxies, 2),
+        compute(&galaxies, 1_000_000)
+    );
+}
+
 fn main() {
     day_01();
     day_02();
@@ -839,4 +896,5 @@ fn main() {
     day_08();
     day_09();
     day_10();
+    day_11();
 }
