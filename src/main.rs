@@ -629,6 +629,205 @@ fn day_09() {
     println!("day09 {sum} {sum2}");
 }
 
+fn day_10() {
+    let file = File::open("input/input_10.txt").unwrap();
+    let reader = BufReader::new(file);
+    let lines: Vec<String> = reader.lines().flatten().collect();
+    let mut mat: Vec<char> = Vec::new();
+    let w = lines[0].len();
+    let h = lines.len();
+    mat.resize(w * h, ' ');
+    mat = lines.iter().flat_map(|s| s.chars()).collect();
+    let pos = mat.iter().position(|c| *c == 'S').unwrap();
+    let mut x = pos % w;
+    let mut y = pos / w;
+    let mut lopp: Vec<(usize, usize)> = Vec::new();
+    let gn = |x, y, c: &Vec<(usize, usize)>| {
+        let mut res: Vec<(usize, usize)> = Vec::new();
+        let nc = c
+            .iter()
+            .rev()
+            .take(2)
+            .copied()
+            .collect::<Vec<(usize, usize)>>();
+        if x > 0 && !nc.contains(&(x - 1, y)) {
+            res.push((x - 1, y));
+        }
+        if y > 0 && !nc.contains(&(x, y - 1)) {
+            res.push((x, y - 1));
+        }
+        if x < w - 1 && !nc.contains(&(x + 1, y)) {
+            res.push((x + 1, y));
+        }
+        if y < h - 1 && !nc.contains(&(x, y + 1)) {
+            res.push((x, y + 1));
+        }
+        res
+    };
+    let at = |mat: &Vec<char>, x, y| mat[y * w + x];
+    let mut from_to = (0, 0, 0, 0);
+    loop {
+        let neighbors = gn(x, y, &lopp);
+        for &(x2, y2) in neighbors.iter() {
+            let a = at(&mat, x, y);
+            let a2 = at(&mat, x2, y2);
+            if x2 > x {
+                match (a, a2) {
+                    ('S', '-')
+                    | ('S', 'J')
+                    | ('S', '7')
+                    | ('-', '-')
+                    | ('-', 'J')
+                    | ('-', '7')
+                    | ('-', 'S')
+                    | ('L', '-')
+                    | ('L', 'J')
+                    | ('L', '7')
+                    | ('L', 'S')
+                    | ('F', '-')
+                    | ('F', 'J')
+                    | ('F', '7')
+                    | ('F', 'S') => {
+                        if a == 'S' {
+                            from_to.0 = 1;
+                        }
+                        if a2 == 'S' {
+                            from_to.2 = -1;
+                        }
+                        lopp.push((x, y));
+                        x = x2;
+                        break;
+                    }
+                    _ => (),
+                }
+            }
+            if x2 < x {
+                match (a, a2) {
+                    ('S', '-')
+                    | ('S', 'F')
+                    | ('S', 'L')
+                    | ('-', '-')
+                    | ('-', 'F')
+                    | ('-', 'L')
+                    | ('-', 'S')
+                    | ('J', '-')
+                    | ('J', 'F')
+                    | ('J', 'L')
+                    | ('J', 'S')
+                    | ('7', '-')
+                    | ('7', 'F')
+                    | ('7', 'L')
+                    | ('7', 'S') => {
+                        if a == 'S' {
+                            from_to.0 = -1;
+                        }
+                        if a2 == 'S' {
+                            from_to.2 = 1;
+                        }
+                        lopp.push((x, y));
+                        x = x2;
+                        break;
+                    }
+                    _ => (),
+                }
+            }
+            if y2 > y {
+                match (a, a2) {
+                    ('S', '|')
+                    | ('S', 'J')
+                    | ('S', 'L')
+                    | ('|', '|')
+                    | ('|', 'J')
+                    | ('|', 'L')
+                    | ('|', 'S')
+                    | ('F', '|')
+                    | ('F', 'J')
+                    | ('F', 'L')
+                    | ('F', 'S')
+                    | ('7', '|')
+                    | ('7', 'J')
+                    | ('7', 'L')
+                    | ('7', 'S') => {
+                        if a == 'S' {
+                            from_to.1 = 1;
+                        }
+                        if a2 == 'S' {
+                            from_to.3 = -1;
+                        }
+                        lopp.push((x, y));
+                        y = y2;
+                        break;
+                    }
+                    _ => (),
+                }
+            }
+            if y2 < y {
+                match (a, a2) {
+                    ('S', '|')
+                    | ('S', 'F')
+                    | ('S', '7')
+                    | ('|', '|')
+                    | ('|', 'F')
+                    | ('|', '7')
+                    | ('|', 'S')
+                    | ('J', '|')
+                    | ('J', 'F')
+                    | ('J', '7')
+                    | ('J', 'S')
+                    | ('L', '|')
+                    | ('L', 'F')
+                    | ('L', '7')
+                    | ('L', 'S') => {
+                        if a == 'S' {
+                            from_to.1 = -1;
+                        }
+                        if a2 == 'S' {
+                            from_to.3 = 1;
+                        }
+                        lopp.push((x, y));
+                        y = y2;
+                        break;
+                    }
+                    _ => (),
+                }
+            }
+        }
+        if lopp.len() > 1 && lopp.first().unwrap() == lopp.last().unwrap() {
+            break;
+        }
+    }
+    (x, y) = *lopp.first().unwrap();
+    mat[y * w + x] = match from_to {
+        (0, -1, 0, 1) => '|',
+        (-1, 0, 1, 0) => '-',
+        (0, 1, 0, -1) => '|',
+        (1, 0, -1, 0) => '-',
+        (0, -1, 1, 0) => 'L',
+        (1, 0, 0, -1) => 'L',
+        (-1, 0, 0, 1) => '7',
+        (0, 1, -1, 0) => '7',
+        (0, -1, -1, 0) => 'J',
+        (-1, 0, 0, -1) => 'J',
+        (1, 0, 0, 1) => 'F',
+        (0, 1, 1, 0) => 'F',
+        _ => panic!("DUPA"),
+    };
+    let mut sum = 0;
+    for i in 0..h {
+        let mut inside = false;
+        for j in 0..w {
+            if lopp.contains(&(j, i)) {
+                if "|JL".contains(at(&mat, j, i)) {
+                    inside = !inside;
+                }
+            } else if inside {
+                sum += 1;
+            }
+        }
+    }
+    println!("day10 {} {}", lopp.len() / 2, sum);
+}
+
 fn main() {
     day_01();
     day_02();
@@ -639,4 +838,5 @@ fn main() {
     day_07();
     day_08();
     day_09();
+    day_10();
 }
