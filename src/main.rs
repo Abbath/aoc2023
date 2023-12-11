@@ -666,130 +666,58 @@ fn day_10() {
     };
     let at = |mat: &Vec<char>, x, y| mat[y * w + x];
     let mut from_to = (0, 0, 0, 0);
+    let left_bois = "S-J7";
+    let right_bois = "S-LF";
+    let top_bois = "S|JL";
+    let bottom_bois = "S|7F";
     loop {
         let neighbors = gn(x, y, &lopp);
         for &(x2, y2) in neighbors.iter() {
             let a = at(&mat, x, y);
             let a2 = at(&mat, x2, y2);
-            if x2 > x {
-                match (a, a2) {
-                    ('S', '-')
-                    | ('S', 'J')
-                    | ('S', '7')
-                    | ('-', '-')
-                    | ('-', 'J')
-                    | ('-', '7')
-                    | ('-', 'S')
-                    | ('L', '-')
-                    | ('L', 'J')
-                    | ('L', '7')
-                    | ('L', 'S')
-                    | ('F', '-')
-                    | ('F', 'J')
-                    | ('F', '7')
-                    | ('F', 'S') => {
-                        if a == 'S' {
-                            from_to.0 = 1;
-                        }
-                        if a2 == 'S' {
-                            from_to.2 = -1;
-                        }
-                        lopp.push((x, y));
-                        x = x2;
-                        break;
-                    }
-                    _ => (),
+            if x2 > x && right_bois.contains(a) && left_bois.contains(a2) {
+                if a == 'S' {
+                    from_to.0 = 1;
                 }
+                if a2 == 'S' {
+                    from_to.2 = -1;
+                }
+                lopp.push((x, y));
+                x = x2;
+                break;
             }
-            if x2 < x {
-                match (a, a2) {
-                    ('S', '-')
-                    | ('S', 'F')
-                    | ('S', 'L')
-                    | ('-', '-')
-                    | ('-', 'F')
-                    | ('-', 'L')
-                    | ('-', 'S')
-                    | ('J', '-')
-                    | ('J', 'F')
-                    | ('J', 'L')
-                    | ('J', 'S')
-                    | ('7', '-')
-                    | ('7', 'F')
-                    | ('7', 'L')
-                    | ('7', 'S') => {
-                        if a == 'S' {
-                            from_to.0 = -1;
-                        }
-                        if a2 == 'S' {
-                            from_to.2 = 1;
-                        }
-                        lopp.push((x, y));
-                        x = x2;
-                        break;
-                    }
-                    _ => (),
+            if x2 < x && left_bois.contains(a) && right_bois.contains(a2) {
+                if a == 'S' {
+                    from_to.0 = -1;
                 }
+                if a2 == 'S' {
+                    from_to.2 = 1;
+                }
+                lopp.push((x, y));
+                x = x2;
+                break;
             }
-            if y2 > y {
-                match (a, a2) {
-                    ('S', '|')
-                    | ('S', 'J')
-                    | ('S', 'L')
-                    | ('|', '|')
-                    | ('|', 'J')
-                    | ('|', 'L')
-                    | ('|', 'S')
-                    | ('F', '|')
-                    | ('F', 'J')
-                    | ('F', 'L')
-                    | ('F', 'S')
-                    | ('7', '|')
-                    | ('7', 'J')
-                    | ('7', 'L')
-                    | ('7', 'S') => {
-                        if a == 'S' {
-                            from_to.1 = 1;
-                        }
-                        if a2 == 'S' {
-                            from_to.3 = -1;
-                        }
-                        lopp.push((x, y));
-                        y = y2;
-                        break;
-                    }
-                    _ => (),
+            if y2 > y && bottom_bois.contains(a) && top_bois.contains(a2) {
+                if a == 'S' {
+                    from_to.1 = 1;
                 }
+                if a2 == 'S' {
+                    from_to.3 = -1;
+                }
+                lopp.push((x, y));
+                y = y2;
+                break;
             }
-            if y2 < y {
-                match (a, a2) {
-                    ('S', '|')
-                    | ('S', 'F')
-                    | ('S', '7')
-                    | ('|', '|')
-                    | ('|', 'F')
-                    | ('|', '7')
-                    | ('|', 'S')
-                    | ('J', '|')
-                    | ('J', 'F')
-                    | ('J', '7')
-                    | ('J', 'S')
-                    | ('L', '|')
-                    | ('L', 'F')
-                    | ('L', '7')
-                    | ('L', 'S') => {
-                        if a == 'S' {
-                            from_to.1 = -1;
-                        }
-                        if a2 == 'S' {
-                            from_to.3 = 1;
-                        }
-                        lopp.push((x, y));
-                        y = y2;
-                        break;
-                    }
-                    _ => (),
+            if y2 < y && top_bois.contains(a) && bottom_bois.contains(a2) {
+                if a == 'S' {
+                    from_to.1 = -1;
                 }
+                if a2 == 'S' {
+                    from_to.3 = 1;
+                }
+                lopp.push((x, y));
+                y = y2;
+                break;
             }
         }
         if lopp.len() > 1 && lopp.first().unwrap() == lopp.last().unwrap() {
@@ -810,7 +738,7 @@ fn day_10() {
         (-1, 0, 0, -1) => 'J',
         (1, 0, 0, 1) => 'F',
         (0, 1, 1, 0) => 'F',
-        _ => panic!("DUPA"),
+        _ => panic!("Diagonals are not allowed"),
     };
     let mut sum = 0;
     for i in 0..h {
