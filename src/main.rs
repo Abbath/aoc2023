@@ -807,6 +807,104 @@ fn day_11() {
     );
 }
 
+fn day_12() {
+    let file = File::open("input/input_12.txt").unwrap();
+    let reader = BufReader::new(file);
+    let lines: Vec<String> = reader.lines().flatten().collect();
+    let check = |s: &str, ns: &Vec<usize>| {
+        let mut counter = 0usize;
+        let mut offset = 0usize;
+        for c in s.chars() {
+            if c == '#' {
+                counter += 1;
+            } else if counter > 0 {
+                if offset == ns.len() || counter != ns[offset] {
+                    return false;
+                }
+                offset += 1;
+                counter = 0;
+            }
+        }
+        if counter > 0 {
+            if offset == ns.len() || counter != ns[offset] {
+                return false;
+            }
+            offset += 1;
+        }
+        if offset != ns.len() {
+            return false;
+        }
+        true
+    };
+    let substitute = |s: &str, n: usize| {
+        let mut v: Vec<char> = Vec::new();
+        let mut n2 = n;
+        for c in s.chars() {
+            if c == '?' {
+                v.push(if n2 & 0x1 == 0x1 { '#' } else { '.' });
+                n2 /= 2;
+            } else {
+                v.push(c);
+            }
+        }
+        v.iter().collect::<String>()
+    };
+    let compute = |s: &str, ns: &Vec<usize>| {
+        let s2 = format!(".{}", s.trim_end_matches('.'))
+            .chars()
+            .collect::<Vec<_>>();
+        let mut d = vec![0; s2.len() + 1];
+        d[0] = 1;
+        for (i, _) in s2.iter().take_while(|&&c| c != '#').enumerate() {
+            d[i + 1] = 1;
+        }
+        for &n in ns.iter() {
+            let mut d2 = vec![0; s2.len() + 1];
+            let mut counter = 0usize;
+            for (i, &c) in s2.iter().enumerate() {
+                counter = if c != '.' { counter + 1 } else { 0 };
+                if c != '#' {
+                    d2[i + 1] += d2[i];
+                }
+                if counter >= n && s2[i - n] != '#' {
+                    d2[i + 1] += d[i - n];
+                }
+            }
+            d = d2;
+        }
+        *d.last().unwrap()
+    };
+    let (sum, sum2): (usize, usize) = lines
+        .iter()
+        .map(|line| {
+            let mut sum = 0usize;
+            let parts = line.split(' ').collect::<Vec<_>>();
+            let numbers = parts[1]
+                .split(',')
+                .map(|x| x.parse::<usize>().unwrap())
+                .collect::<Vec<_>>();
+            let string = parts[0];
+            let n = string.chars().filter(|c| *c == '?').count();
+            for i in 0..(1 << n) {
+                let s = substitute(string, i);
+                if check(&s, &numbers) {
+                    sum += 1;
+                }
+            }
+            let string2 = [string; 5].join("?");
+            let numbers2 = numbers
+                .iter()
+                .cycle()
+                .take(5 * numbers.len())
+                .copied()
+                .collect::<Vec<_>>();
+            let sum2 = compute(&string2, &numbers2);
+            (sum, sum2)
+        })
+        .fold((0usize, 0usize), |(a, b), (c, d)| (a + c, b + d));
+    println!("day12 {sum} {sum2}");
+}
+
 fn main() {
     day_01();
     day_02();
@@ -819,4 +917,5 @@ fn main() {
     day_09();
     day_10();
     day_11();
+    day_12();
 }
