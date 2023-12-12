@@ -858,7 +858,7 @@ fn day_12() {
         for (i, _) in s2.iter().take_while(|&&c| c != '#').enumerate() {
             d[i + 1] = 1;
         }
-        for &n in ns.iter() {
+        *ns.iter().fold(d, |d, &n| {
             let mut d2 = vec![0; s2.len() + 1];
             let mut counter = 0usize;
             for (i, &c) in s2.iter().enumerate() {
@@ -870,9 +870,8 @@ fn day_12() {
                     d2[i + 1] += d[i - n];
                 }
             }
-            d = d2;
-        }
-        *d.last().unwrap()
+            d2
+        }).last().unwrap()
     };
     let (sum, sum2): (usize, usize) = lines
         .iter()
