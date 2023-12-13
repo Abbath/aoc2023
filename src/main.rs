@@ -811,44 +811,6 @@ fn day_12() {
     let file = File::open("input/input_12.txt").unwrap();
     let reader = BufReader::new(file);
     let lines: Vec<String> = reader.lines().flatten().collect();
-    let check = |s: &str, ns: &Vec<usize>| {
-        let mut counter = 0usize;
-        let mut offset = 0usize;
-        for c in s.chars() {
-            if c == '#' {
-                counter += 1;
-            } else if counter > 0 {
-                if offset == ns.len() || counter != ns[offset] {
-                    return false;
-                }
-                offset += 1;
-                counter = 0;
-            }
-        }
-        if counter > 0 {
-            if offset == ns.len() || counter != ns[offset] {
-                return false;
-            }
-            offset += 1;
-        }
-        if offset != ns.len() {
-            return false;
-        }
-        true
-    };
-    let substitute = |s: &str, n: usize| {
-        let mut v: Vec<char> = Vec::new();
-        let mut n2 = n;
-        for c in s.chars() {
-            if c == '?' {
-                v.push(if n2 & 0x1 == 0x1 { '#' } else { '.' });
-                n2 /= 2;
-            } else {
-                v.push(c);
-            }
-        }
-        v.iter().collect::<String>()
-    };
     let compute = |s: &str, ns: &Vec<usize>| {
         let s2 = format!(".{}", s.trim_end_matches('.'))
             .chars()
@@ -858,38 +820,34 @@ fn day_12() {
         for (i, _) in s2.iter().take_while(|&&c| c != '#').enumerate() {
             d[i + 1] = 1;
         }
-        *ns.iter().fold(d, |d, &n| {
-            let mut d2 = vec![0; s2.len() + 1];
-            let mut counter = 0usize;
-            for (i, &c) in s2.iter().enumerate() {
-                counter = if c != '.' { counter + 1 } else { 0 };
-                if c != '#' {
-                    d2[i + 1] += d2[i];
+        *ns.iter()
+            .fold(d, |d, &n| {
+                let mut d2 = vec![0; s2.len() + 1];
+                let mut counter = 0usize;
+                for (i, &c) in s2.iter().enumerate() {
+                    counter = if c != '.' { counter + 1 } else { 0 };
+                    if c != '#' {
+                        d2[i + 1] += d2[i];
+                    }
+                    if counter >= n && s2[i - n] != '#' {
+                        d2[i + 1] += d[i - n];
+                    }
                 }
-                if counter >= n && s2[i - n] != '#' {
-                    d2[i + 1] += d[i - n];
-                }
-            }
-            d2
-        }).last().unwrap()
+                d2
+            })
+            .last()
+            .unwrap()
     };
     let (sum, sum2): (usize, usize) = lines
         .iter()
         .map(|line| {
-            let mut sum = 0usize;
             let parts = line.split(' ').collect::<Vec<_>>();
             let numbers = parts[1]
                 .split(',')
                 .map(|x| x.parse::<usize>().unwrap())
                 .collect::<Vec<_>>();
             let string = parts[0];
-            let n = string.chars().filter(|c| *c == '?').count();
-            for i in 0..(1 << n) {
-                let s = substitute(string, i);
-                if check(&s, &numbers) {
-                    sum += 1;
-                }
-            }
+            let sum = compute(string, &numbers);
             let string2 = [string; 5].join("?");
             let numbers2 = numbers
                 .iter()
@@ -902,6 +860,197 @@ fn day_12() {
         })
         .fold((0usize, 0usize), |(a, b), (c, d)| (a + c, b + d));
     println!("day12 {sum} {sum2}");
+}
+
+fn day_13() {
+    let file = File::open("input/input_13.txt").unwrap();
+    let reader = BufReader::new(file);
+    let lines: Vec<String> = reader.lines().flatten().collect();
+    let mut mats: Vec<(Vec<usize>, usize, usize)> = Vec::new();
+    let mut mat: Vec<usize> = Vec::new();
+    let mut counter = 0;
+    let mut w = 0;
+    for line in lines.iter() {
+        if line.is_empty() {
+            mats.push((mat.clone(), counter, w));
+            mat.clear();
+            counter = 0;
+            continue;
+        }
+        if counter == 0 {
+            w = line.len();
+        }
+        let mut v = line
+            .chars()
+            .map(|c| if c == '#' { 1 } else { 0usize })
+            .collect::<Vec<_>>();
+        mat.append(&mut v);
+        counter += 1;
+    }
+    mats.push((mat, counter, w));
+    fn vec_eq(v1: &Vec<&usize>, v2: &Vec<&usize>) -> usize {
+        v1.len()
+            .abs_diff(v1.iter().zip(v2).filter(|(&&a, &&b)| a == b).count())
+    }
+    let mut sum = 0;
+    for (mat, rows, cols) in mats.iter() {
+        let mut mirror_row = -1;
+        let mut mirror_col = -1;
+        for r in 1..*rows {
+            let row1 = mat
+                .iter()
+                .skip(cols * (r - 1))
+                .take(*cols)
+                .collect::<Vec<_>>();
+            let row2 = mat.iter().skip(cols * r).take(*cols).collect::<Vec<_>>();
+            if mirror_row == -1 && vec_eq(&row1, &row2) == 0 {
+                mirror_row = r as i32;
+                counter = 0;
+                while (r as i32 - 1 - counter as i32) >= 0 && r + counter < *rows {
+                    let a = r - counter - 1;
+                    let b = r + counter;
+                    let row1 = mat.iter().skip(cols * a).take(*cols).collect::<Vec<_>>();
+                    let row2 = mat.iter().skip(cols * b).take(*cols).collect::<Vec<_>>();
+                    if vec_eq(&row1, &row2) != 0 {
+                        mirror_row = -1;
+                        break;
+                    }
+                    counter += 1;
+                }
+            }
+        }
+        for c in 1..*cols {
+            let col1 = mat.iter().skip(c - 1).step_by(*cols).collect::<Vec<_>>();
+            let col2 = mat.iter().skip(c).step_by(*cols).collect::<Vec<_>>();
+            if mirror_col == -1 && vec_eq(&col1, &col2) == 0 {
+                mirror_col = c as i32;
+                counter = 0;
+                while (c as i32 - 1 - counter as i32) >= 0 && c + counter < *cols {
+                    let a = c - counter - 1;
+                    let b = c + counter;
+                    let col1 = mat.iter().skip(a).step_by(*cols).collect::<Vec<_>>();
+                    let col2 = mat.iter().skip(b).step_by(*cols).collect::<Vec<_>>();
+                    if vec_eq(&col1, &col2) != 0 {
+                        mirror_col = -1;
+                        break;
+                    }
+                    counter += 1;
+                }
+            }
+        }
+        if mirror_row > 0 {
+            sum += 100 * mirror_row
+        }
+        if mirror_col > 0 {
+            sum += mirror_col;
+        }
+    }
+    let mut sum2 = 0;
+    for (mat, rows, cols) in mats.iter() {
+        let mut mirror_row = -1;
+        let mut mirror_col = -1;
+        for r in 1..*rows {
+            let mut smudge_row = false;
+            let row1 = mat
+                .iter()
+                .skip(cols * (r - 1))
+                .take(*cols)
+                .collect::<Vec<_>>();
+            let row2 = mat.iter().skip(cols * r).take(*cols).collect::<Vec<_>>();
+            let check = {
+                let ve = vec_eq(&row1, &row2);
+                if ve == 0 {
+                    true
+                } else if ve == 1 && !smudge_row {
+                    smudge_row = true;
+                    true
+                } else {
+                    false
+                }
+            };
+            if mirror_row == -1 && check {
+                mirror_row = r as i32;
+                counter = 1;
+                while (r as i32 - 1 - counter as i32) >= 0 && r + counter < *rows {
+                    let a = r - counter - 1;
+                    let b = r + counter;
+                    let row1 = mat.iter().skip(cols * a).take(*cols).collect::<Vec<_>>();
+                    let row2 = mat.iter().skip(cols * b).take(*cols).collect::<Vec<_>>();
+                    let check = {
+                        let ve = vec_eq(&row1, &row2);
+                        if ve == 0 {
+                            true
+                        } else if ve == 1 && !smudge_row {
+                            smudge_row = true;
+                            true
+                        } else {
+                            false
+                        }
+                    };
+                    if !check {
+                        mirror_row = -1;
+                        break;
+                    }
+                    counter += 1;
+                }
+                if !smudge_row {
+                    mirror_row = -1;
+                }
+            }
+        }
+        for c in 1..*cols {
+            let mut smudge_col = false;
+            let col1 = mat.iter().skip(c - 1).step_by(*cols).collect::<Vec<_>>();
+            let col2 = mat.iter().skip(c).step_by(*cols).collect::<Vec<_>>();
+            let check = {
+                let ve = vec_eq(&col1, &col2);
+                if ve == 0 {
+                    true
+                } else if ve == 1 && !smudge_col {
+                    smudge_col = true;
+                    true
+                } else {
+                    false
+                }
+            };
+            if mirror_col == -1 && check {
+                mirror_col = c as i32;
+                counter = 1;
+                while (c as i32 - 1 - counter as i32) >= 0 && c + counter < *cols {
+                    let a = c - counter - 1;
+                    let b = c + counter;
+                    let col1 = mat.iter().skip(a).step_by(*cols).collect::<Vec<_>>();
+                    let col2 = mat.iter().skip(b).step_by(*cols).collect::<Vec<_>>();
+                    let check = {
+                        let ve = vec_eq(&col1, &col2);
+                        if ve == 0 {
+                            true
+                        } else if ve == 1 && !smudge_col {
+                            smudge_col = true;
+                            true
+                        } else {
+                            false
+                        }
+                    };
+                    if !check {
+                        mirror_col = -1;
+                        break;
+                    }
+                    counter += 1;
+                }
+                if !smudge_col {
+                    mirror_col = -1;
+                }
+            }
+        }
+        if mirror_row > 0 {
+            sum2 += 100 * mirror_row
+        }
+        if mirror_col > 0 {
+            sum2 += mirror_col;
+        }
+    }
+    println!("day13 {sum} {sum2}");
 }
 
 fn main() {
@@ -917,4 +1066,5 @@ fn main() {
     day_10();
     day_11();
     day_12();
+    day_13();
 }
