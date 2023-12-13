@@ -892,6 +892,17 @@ fn day_13() {
         v1.len()
             .abs_diff(v1.iter().zip(v2).filter(|(&&a, &&b)| a == b).count())
     }
+    fn vec_eq2(v1: &Vec<&usize>, v2: &Vec<&usize>, smudge: &mut bool) -> bool {
+        let ve = vec_eq(v1, v2);
+        if ve == 0 {
+            true
+        } else if ve == 1 && !*smudge {
+            *smudge = true;
+            true
+        } else {
+            false
+        }
+    }
     let mut sum = 0;
     for (mat, rows, cols) in mats.iter() {
         let mut mirror_row = -1;
@@ -957,18 +968,7 @@ fn day_13() {
                 .take(*cols)
                 .collect::<Vec<_>>();
             let row2 = mat.iter().skip(cols * r).take(*cols).collect::<Vec<_>>();
-            let check = {
-                let ve = vec_eq(&row1, &row2);
-                if ve == 0 {
-                    true
-                } else if ve == 1 && !smudge_row {
-                    smudge_row = true;
-                    true
-                } else {
-                    false
-                }
-            };
-            if mirror_row == -1 && check {
+            if mirror_row == -1 && vec_eq2(&row1, &row2, &mut smudge_row) {
                 mirror_row = r as i32;
                 counter = 1;
                 while (r as i32 - 1 - counter as i32) >= 0 && r + counter < *rows {
@@ -976,18 +976,7 @@ fn day_13() {
                     let b = r + counter;
                     let row1 = mat.iter().skip(cols * a).take(*cols).collect::<Vec<_>>();
                     let row2 = mat.iter().skip(cols * b).take(*cols).collect::<Vec<_>>();
-                    let check = {
-                        let ve = vec_eq(&row1, &row2);
-                        if ve == 0 {
-                            true
-                        } else if ve == 1 && !smudge_row {
-                            smudge_row = true;
-                            true
-                        } else {
-                            false
-                        }
-                    };
-                    if !check {
+                    if !vec_eq2(&row1, &row2, &mut smudge_row) {
                         mirror_row = -1;
                         break;
                     }
@@ -1002,18 +991,7 @@ fn day_13() {
             let mut smudge_col = false;
             let col1 = mat.iter().skip(c - 1).step_by(*cols).collect::<Vec<_>>();
             let col2 = mat.iter().skip(c).step_by(*cols).collect::<Vec<_>>();
-            let check = {
-                let ve = vec_eq(&col1, &col2);
-                if ve == 0 {
-                    true
-                } else if ve == 1 && !smudge_col {
-                    smudge_col = true;
-                    true
-                } else {
-                    false
-                }
-            };
-            if mirror_col == -1 && check {
+            if mirror_col == -1 && vec_eq2(&col1, &col2, &mut smudge_col) {
                 mirror_col = c as i32;
                 counter = 1;
                 while (c as i32 - 1 - counter as i32) >= 0 && c + counter < *cols {
@@ -1021,18 +999,7 @@ fn day_13() {
                     let b = c + counter;
                     let col1 = mat.iter().skip(a).step_by(*cols).collect::<Vec<_>>();
                     let col2 = mat.iter().skip(b).step_by(*cols).collect::<Vec<_>>();
-                    let check = {
-                        let ve = vec_eq(&col1, &col2);
-                        if ve == 0 {
-                            true
-                        } else if ve == 1 && !smudge_col {
-                            smudge_col = true;
-                            true
-                        } else {
-                            false
-                        }
-                    };
-                    if !check {
+                    if !vec_eq2(&col1, &col2, &mut smudge_col) {
                         mirror_col = -1;
                         break;
                     }
