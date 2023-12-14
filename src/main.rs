@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
 use std::iter::zip;
+use std::ops::RangeInclusive;
 
 fn day_01() {
     let file = File::open("input/input_01.txt").unwrap();
@@ -991,6 +992,131 @@ fn day_13() {
     println!("day13 {} {}", compute(&mats, false), compute(&mats, true));
 }
 
+fn day_14() {
+    let file = File::open("input/input_14.txt").unwrap();
+    let reader = BufReader::new(file);
+    let lines: Vec<String> = reader.lines().flatten().collect();
+    let rows = lines.len();
+    let cols = lines[0].len();
+    let mat = lines
+        .iter()
+        .flat_map(|l| l.chars().collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+    #[derive(Copy, Clone)]
+    enum Dir {
+        North,
+        West,
+        South,
+        East,
+    }
+    fn tilt(mat: &[char], rows: usize, cols: usize, dir: Dir) -> Vec<char> {
+        let mut res = mat.to_owned();
+        let mut pos = vec![
+            match dir {
+                Dir::North | Dir::West => 0usize,
+                Dir::South => rows - 1,
+                Dir::East => cols - 1,
+            };
+            match dir {
+                Dir::North | Dir::South => cols,
+                Dir::West | Dir::East => rows,
+            }
+        ];
+        let outer_range = match dir {
+            Dir::North => (0, rows - 1),
+            Dir::South => (rows - 1, 0),
+            Dir::West => (0, cols - 1),
+            Dir::East => (cols - 1, 0),
+        };
+        let inner_range = match dir {
+            Dir::North => (0, cols - 1),
+            Dir::South => (0, cols - 1),
+            Dir::West => (0, rows - 1),
+            Dir::East => (0, rows - 1),
+        };
+        let idx = |r: usize, c: usize, dir: Dir| match dir {
+            Dir::North | Dir::South => r * cols + c,
+            Dir::West | Dir::East => c * cols + r,
+        };
+        let advance_pos = |pos: usize, dir: Dir| match dir {
+            Dir::North | Dir::West => pos + 1,
+            Dir::South | Dir::East => pos - 1,
+        };
+        let compare_pos = |val: usize, pos: usize, dir: Dir| match dir {
+            Dir::North | Dir::West => val > pos,
+            Dir::South | Dir::East => val < pos,
+        };
+        fn mkiter<'a, T: 'a>(start: T, end: T) -> Box<dyn Iterator<Item = T> + 'a>
+        where
+            T: PartialOrd,
+            RangeInclusive<T>: Iterator<Item = T> + DoubleEndedIterator,
+        {
+            if start > end {
+                Box::new((end..=start).rev())
+            } else {
+                Box::new(start..=end)
+            }
+        }
+        for r in mkiter(outer_range.0, outer_range.1) {
+            for c in mkiter(inner_range.0, inner_range.1) {
+                match mat[idx(r, c, dir)] {
+                    '.' => (),
+                    'O' => {
+                        if compare_pos(r, pos[c], dir) {
+                            res[idx(pos[c], c, dir)] = 'O';
+                            res[idx(r, c, dir)] = '.';
+                            pos[c] = advance_pos(pos[c], dir);
+                        } else if r == pos[c] {
+                            pos[c] = advance_pos(pos[c], dir);
+                        }
+                    }
+                    '#' => pos[c] = advance_pos(r, dir),
+                    _ => panic!("Wrong character"),
+                }
+            }
+        }
+        res
+    }
+    fn compute_load(mat: &[char], rows: usize, cols: usize) -> usize {
+        let idx = |r, c| r * cols + c;
+        let mut sum = 0;
+        for r in 0..rows {
+            for c in 0..cols {
+                if mat[idx(r, c)] == 'O' {
+                    sum += rows - r;
+                }
+            }
+        }
+        sum
+    }
+    fn cycle(mat: &[char], rows: usize, cols: usize) -> Vec<char> {
+        let a = tilt(mat, rows, cols, Dir::North);
+        let b = tilt(&a, rows, cols, Dir::West);
+        let c = tilt(&b, rows, cols, Dir::South);
+        tilt(&c, rows, cols, Dir::East)
+    }
+    let new_mat = tilt(&mat, rows, cols, Dir::North);
+    fn vec_eq(v1: &Vec<char>, v2: &Vec<char>) -> bool {
+        v1.iter().zip(v2).filter(|(&a, &b)| a == b).count() == v1.len()
+    }
+    let mut v: Vec<char> = mat.clone();
+    let mut mats: Vec<(Vec<char>, usize, usize)> = Vec::new();
+    mats.push((v.clone(), compute_load(&v, rows, cols), 0));
+    let big = 1_000_000_000;
+    let mut load = 0;
+    for i in 0..big {
+        v = cycle(&v, rows, cols);
+        let val = compute_load(&v, rows, cols);
+        if let Some((_, _, n)) = mats.iter().find(|(x, l, _)| vec_eq(&v, x) && *l == val) {
+            let diff = (i + 1) - n;
+            load = mats[n + (big - n) % diff].1;
+            break;
+        }
+        mats.push((v.clone(), val, i + 1));
+    }
+    println!("day14 {} {}", compute_load(&new_mat, rows, cols), load);
+}
+
 fn main() {
     day_01();
     day_02();
@@ -1005,4 +1131,5 @@ fn main() {
     day_11();
     day_12();
     day_13();
+    day_14();
 }
