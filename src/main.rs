@@ -1117,6 +1117,52 @@ fn day_14() {
     println!("day14 {} {}", compute_load(&new_mat, rows, cols), load);
 }
 
+fn day_15() {
+    let file = File::open("input/input_15.txt").unwrap();
+    let reader = BufReader::new(file);
+    let lines: Vec<String> = reader.lines().flatten().collect();
+    let line = lines.join("");
+    let parts = line.split(',').collect::<Vec<_>>();
+    let mut sum = 0usize;
+    let mut boxes: Vec<VecDeque<(String, u32)>> = vec![VecDeque::new(); 256];
+    let hash = |s: &String| {
+        let mut curr = 0usize;
+        for c in s.chars() {
+            curr = (curr + c as usize) * 17 % 256;
+        }
+        curr
+    };
+    for part in parts.iter() {
+        let curr = hash(&part.to_string());
+        sum += curr;
+        if part.ends_with('-') {
+            let label = part.strip_suffix('-').unwrap().to_string();
+            let h = hash(&label);
+            if let Some(pos) = boxes[h].iter().position(|(s, _)| **s == label) {
+                boxes[h].remove(pos);
+            }
+        } else {
+            let label = part[..part.len() - 2].to_string();
+            let h = hash(&label);
+            let power = part.chars().last().unwrap().to_digit(10).unwrap();
+            if let Some(pos) = boxes[h].iter().position(|(s, _)| **s == label) {
+                boxes[h][pos].1 = power;
+            } else {
+                boxes[h].push_back((label.clone(), power));
+            }
+        }
+    }
+    let mut sum2 = 0;
+    for (i, item) in boxes.iter().enumerate() {
+        if !item.is_empty() {
+            for (j, (_, n)) in item.iter().enumerate() {
+                sum2 += (i + 1) * (j + 1) * *n as usize;
+            }
+        }
+    }
+    println!("day15 {sum} {sum2}");
+}
+
 fn main() {
     day_01();
     day_02();
@@ -1132,4 +1178,5 @@ fn main() {
     day_12();
     day_13();
     day_14();
+    day_15();
 }
