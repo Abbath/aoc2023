@@ -3,6 +3,7 @@ use std::fs::File;
 use std::io::{prelude::*, BufReader};
 use std::iter::zip;
 use std::ops::RangeInclusive;
+use std::usize;
 
 fn day_01() {
     let file = File::open("input/input_01.txt").unwrap();
@@ -1153,7 +1154,7 @@ fn day_15() {
     let sum2 = boxes
         .iter()
         .enumerate()
-        .map(|(i, item)| {
+        .filter_map(|(i, item)| {
             if !item.is_empty() {
                 Some(
                     item.iter()
@@ -1165,9 +1166,189 @@ fn day_15() {
                 None
             }
         })
-        .flatten()
         .sum::<usize>();
     println!("day15 {sum} {sum2}");
+}
+
+fn day_16() {
+    let file = File::open("input/input_16.txt").unwrap();
+    let reader = BufReader::new(file);
+    let lines: Vec<String> = reader.lines().flatten().collect();
+    let rows = lines.len();
+    let cols = lines[0].len();
+    let mat: Vec<char> = lines
+        .iter()
+        .flat_map(|l| l.chars().collect::<Vec<_>>())
+        .collect::<Vec<_>>();
+    #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+    struct Beam {
+        r: i32,
+        c: i32,
+        dx: i32,
+        dy: i32,
+        alive: bool,
+    }
+    let beam = Beam {
+        r: 0,
+        c: 0,
+        dx: 1,
+        dy: 0,
+        alive: true,
+    };
+    fn compute(beam: &Beam, mat: &Vec<char>, rows: usize, cols: usize) -> usize {
+        let idx = |r: i32, c: i32| -> usize { r as usize * cols + c as usize };
+        let mut energized: Vec<usize> = vec![0usize; mat.len()];
+        let mut beams: VecDeque<Beam> = VecDeque::new();
+        beams.push_back(*beam);
+        let mut all_beams: HashSet<Beam> = HashSet::new();
+        while !beams.is_empty() {
+            let mut beam = beams.pop_front().unwrap();
+            while beam.alive {
+                if beam.r < 0 || beam.c < 0 || beam.r >= rows as i32 || beam.c >= cols as i32 {
+                    beam.alive = false;
+                    break;
+                }
+                energized[idx(beam.r, beam.c)] = 1;
+                if "\\/".contains(mat[idx(beam.r, beam.c)]) {
+                    match (mat[idx(beam.r, beam.c)], beam.dx, beam.dy) {
+                        ('/', 1, 0) | ('/', -1, 0) => {
+                            beam.dy = -beam.dx;
+                            beam.dx = 0
+                        }
+                        ('/', 0, 1) | ('/', 0, -1) => {
+                            beam.dx = -beam.dy;
+                            beam.dy = 0
+                        }
+                        ('\\', 1, 0) | ('\\', -1, 0) => {
+                            beam.dy = beam.dx;
+                            beam.dx = 0
+                        }
+                        ('\\', 0, 1) | ('\\', 0, -1) => {
+                            beam.dx = beam.dy;
+                            beam.dy = 0
+                        }
+                        _ => (),
+                    }
+                } else if "-|".contains(mat[idx(beam.r, beam.c)]) {
+                    match (mat[idx(beam.r, beam.c)], beam.dx, beam.dy) {
+                        ('|', 1, 0) | ('|', -1, 0) => {
+                            beam.alive = false;
+                            let beam1 = Beam {
+                                r: beam.r - 1,
+                                c: beam.c,
+                                dx: 0,
+                                dy: -1,
+                                alive: true,
+                            };
+                            if !all_beams.contains(&beam1) {
+                                beams.push_back(beam1);
+                                all_beams.insert(beam1);
+                            }
+                            let beam2 = Beam {
+                                r: beam.r + 1,
+                                c: beam.c,
+                                dx: 0,
+                                dy: 1,
+                                alive: true,
+                            };
+                            if !all_beams.contains(&beam2) {
+                                beams.push_back(beam2);
+                                all_beams.insert(beam2);
+                            }
+                            break;
+                        }
+                        ('-', 0, 1) | ('-', 0, -1) => {
+                            beam.alive = false;
+                            let beam1 = Beam {
+                                r: beam.r,
+                                c: beam.c - 1,
+                                dx: -1,
+                                dy: 0,
+                                alive: true,
+                            };
+                            if !all_beams.contains(&beam1) {
+                                beams.push_back(beam1);
+                                all_beams.insert(beam1);
+                            }
+                            let beam2 = Beam {
+                                r: beam.r,
+                                c: beam.c + 1,
+                                dx: 1,
+                                dy: 0,
+                                alive: true,
+                            };
+                            if !all_beams.contains(&beam2) {
+                                beams.push_back(beam2);
+                                all_beams.insert(beam2);
+                            }
+                            break;
+                        }
+                        _ => (),
+                    }
+                }
+                beam.r += beam.dy;
+                beam.c += beam.dx;
+            }
+        }
+        energized.iter().sum::<usize>()
+    }
+    let e1 = (0..cols)
+        .map(|c| {
+            let beam = Beam {
+                r: 0,
+                c: c as i32,
+                dx: 0,
+                dy: 1,
+                alive: true,
+            };
+            compute(&beam, &mat, rows, cols)
+        })
+        .max()
+        .unwrap();
+    let e2 = (0..cols)
+        .map(|c| {
+            let beam = Beam {
+                r: rows as i32 - 1,
+                c: c as i32,
+                dx: 0,
+                dy: -1,
+                alive: true,
+            };
+            compute(&beam, &mat, rows, cols)
+        })
+        .max()
+        .unwrap();
+    let e3 = (0..rows)
+        .map(|r| {
+            let beam = Beam {
+                r: r as i32,
+                c: 0,
+                dx: 1,
+                dy: 0,
+                alive: true,
+            };
+            compute(&beam, &mat, rows, cols)
+        })
+        .max()
+        .unwrap();
+    let e4 = (0..rows)
+        .map(|r| {
+            let beam = Beam {
+                r: r as i32,
+                c: cols as i32 - 1,
+                dx: -1,
+                dy: 0,
+                alive: true,
+            };
+            compute(&beam, &mat, rows, cols)
+        })
+        .max()
+        .unwrap();
+    println!(
+        "day16 {} {}",
+        compute(&beam, &mat, rows, cols),
+        &[e1, e2, e3, e4].iter().max().unwrap()
+    );
 }
 
 fn main() {
@@ -1186,4 +1367,5 @@ fn main() {
     day_13();
     day_14();
     day_15();
+    day_16();
 }
