@@ -1201,6 +1201,12 @@ fn day_16() {
         let mut beams: VecDeque<Beam> = VecDeque::new();
         beams.push_back(*beam);
         let mut all_beams: HashSet<Beam> = HashSet::new();
+        let mut insert_beam = |b, beams: &mut VecDeque<Beam>| {
+            if !all_beams.contains(&b) {
+                beams.push_back(b);
+                all_beams.insert(b);
+            }
+        };
         while !beams.is_empty() {
             let mut beam = beams.pop_front().unwrap();
             while beam.alive {
@@ -1233,54 +1239,50 @@ fn day_16() {
                     match (mat[idx(beam.r, beam.c)], beam.dx, beam.dy) {
                         ('|', 1, 0) | ('|', -1, 0) => {
                             beam.alive = false;
-                            let beam1 = Beam {
-                                r: beam.r - 1,
-                                c: beam.c,
-                                dx: 0,
-                                dy: -1,
-                                alive: true,
-                            };
-                            if !all_beams.contains(&beam1) {
-                                beams.push_back(beam1);
-                                all_beams.insert(beam1);
-                            }
-                            let beam2 = Beam {
-                                r: beam.r + 1,
-                                c: beam.c,
-                                dx: 0,
-                                dy: 1,
-                                alive: true,
-                            };
-                            if !all_beams.contains(&beam2) {
-                                beams.push_back(beam2);
-                                all_beams.insert(beam2);
-                            }
+                            insert_beam(
+                                Beam {
+                                    r: beam.r - 1,
+                                    c: beam.c,
+                                    dx: 0,
+                                    dy: -1,
+                                    alive: true,
+                                },
+                                &mut beams,
+                            );
+                            insert_beam(
+                                Beam {
+                                    r: beam.r + 1,
+                                    c: beam.c,
+                                    dx: 0,
+                                    dy: 1,
+                                    alive: true,
+                                },
+                                &mut beams,
+                            );
                             break;
                         }
                         ('-', 0, 1) | ('-', 0, -1) => {
                             beam.alive = false;
-                            let beam1 = Beam {
-                                r: beam.r,
-                                c: beam.c - 1,
-                                dx: -1,
-                                dy: 0,
-                                alive: true,
-                            };
-                            if !all_beams.contains(&beam1) {
-                                beams.push_back(beam1);
-                                all_beams.insert(beam1);
-                            }
-                            let beam2 = Beam {
-                                r: beam.r,
-                                c: beam.c + 1,
-                                dx: 1,
-                                dy: 0,
-                                alive: true,
-                            };
-                            if !all_beams.contains(&beam2) {
-                                beams.push_back(beam2);
-                                all_beams.insert(beam2);
-                            }
+                            insert_beam(
+                                Beam {
+                                    r: beam.r,
+                                    c: beam.c - 1,
+                                    dx: -1,
+                                    dy: 0,
+                                    alive: true,
+                                },
+                                &mut beams,
+                            );
+                            insert_beam(
+                                Beam {
+                                    r: beam.r,
+                                    c: beam.c + 1,
+                                    dx: 1,
+                                    dy: 0,
+                                    alive: true,
+                                },
+                                &mut beams,
+                            );
                             break;
                         }
                         _ => (),
