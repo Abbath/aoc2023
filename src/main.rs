@@ -1,4 +1,5 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::cmp::Reverse;
+use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
 use std::iter::zip;
@@ -1353,6 +1354,153 @@ fn day_16() {
     );
 }
 
+fn day_17() {
+    let file = File::open("test_input.txt").unwrap();
+    let reader = BufReader::new(file);
+    let lines: Vec<String> = reader.lines().flatten().collect();
+    let rows = lines.len();
+    let cols = lines[0].len();
+    let mat: Vec<u64> = lines
+        .iter()
+        .flat_map(|l| {
+            l.chars()
+                .map(|c| c.to_digit(10).unwrap() as u64)
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+    #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+    enum Dir {
+        No,
+        North,
+        West,
+        South,
+        East,
+    }
+    // impl Dir {
+    //     pub fn invert(self) -> Self {
+    //         match self {
+    //             Dir::North => Dir::South,
+    //             Dir::South => Dir::North,
+    //             Dir::East => Dir::West,
+    //             Dir::West => Dir::East,
+    //             Dir::No => Dir::No
+    //         }
+    //     }
+    // }
+    let neighbours = |field: &Vec<u64>, idx: usize, h: usize, w: usize, dir: Dir| -> Vec<(usize, usize, Dir)> {
+        let mut res = Vec::new();
+        let i = idx / w;
+        let j = idx % w;
+        if i > 0 && dir != Dir::South {
+            res.push((
+                (i - 1) * w + j,
+                field[(i - 1) * w + j] as usize,
+                Dir::North
+            ));
+        } else {
+            println!("{i} {j} Can't north");
+        }
+        if j > 0 && dir != Dir::East {
+            res.push((
+                i * w + j - 1,
+                field[i * w + j - 1] as usize,
+                Dir::West
+            ));
+        } else {
+            println!("{i} {j} Can't west");
+        }
+        if i < h - 1 && dir != Dir::North {
+            res.push((
+                (i + 1) * w + j,
+                field[(i + 1) * w + j] as usize,
+                Dir::South
+            ));
+        } else {
+            println!("{i} {j} Can't south");
+        }
+        if j < w - 1 && dir != Dir::West {
+            res.push((
+                i * w + j + 1,
+                field[i * w + j + 1] as usize,
+                Dir::East
+            ));
+        } else {
+            println!("{i} {j} Can't east");
+        }
+        res
+    };
+    fn reconstruct_path(came_from: &HashMap<usize, (usize, Dir)>, current: usize) -> VecDeque<usize> {
+        let mut total_path = VecDeque::from(vec![current]);
+        let mut curr = current;
+        while came_from.contains_key(&curr) {
+            curr = came_from[&curr].0;
+            total_path.push_front(curr);
+        }
+        total_path
+    }
+    fn take_two(came_from: &HashMap<usize, (usize, Dir)>, current: usize) -> Option<Dir> {
+        let mut three = VecDeque::new();
+        let mut curr = current;
+        let mut counter = 0;
+        while counter < 2 && came_from.contains_key(&curr) {
+            let dir = came_from[&curr].1;
+            curr = came_from[&curr].0;
+            three.push_front(dir);
+            counter += 1;
+        }
+        if three.len() == 2 && three[0] == three[1] {
+            Some(three[0])
+        } else {
+            None
+        }
+    }
+    let astar =
+        |field: &Vec<u64>, h: usize, w: usize, start: (usize, usize), finish: (usize, usize)| {
+            let hh = |u: usize| {
+                field[u]
+            };
+            let rows = h * w;
+            let mut open_set = BinaryHeap::new();
+            let mut came_from: HashMap<usize, (usize, Dir)> = HashMap::new();
+            open_set.push((Reverse(0), (0, Dir::No)));
+            let mut g_score = vec![rows * 100; rows];
+            g_score[start.0 * w + start.1] = 0;
+            let mut f_score = vec![rows * 100; rows];
+            f_score[start.0 * w + start.1] = 0;
+            let mut res = 0;
+            while let Some((Reverse(_), (idx, odir))) = open_set.pop() {
+                if idx == finish.0 * w + finish.1 {
+                    res = idx;
+                    break;
+                }
+                println!("{odir:?}");
+                for (k, v, dir) in neighbours(field, idx, h, w, odir) {
+                    let new_score = g_score[idx] + v as usize;
+                    let same = if let Some(cf) = take_two(&came_from, idx) {
+                        cf == dir
+                    } else {
+                        false
+                    };
+                    if new_score < g_score[k] && !same {
+                        came_from.insert(k, (idx, dir));
+                        g_score[k] = new_score;
+                        f_score[k] = new_score + hh(k) as usize;
+                        open_set.push((Reverse(f_score[k]), (k, dir)));
+                    }
+                }
+            }
+            let path = reconstruct_path(&came_from, res);
+            println!("{path:?}");
+            let l = path.iter().map(|x| field[*x] as usize).sum();
+            if l == 0 {
+                usize::MAX
+            } else {
+                l
+            }
+        };
+    println!("{}", astar(&mat, rows, cols, (0, 0), (rows-1, cols-1)));
+}
+
 fn main() {
     day_01();
     day_02();
@@ -1370,4 +1518,5 @@ fn main() {
     day_14();
     day_15();
     day_16();
+    day_17();
 }
