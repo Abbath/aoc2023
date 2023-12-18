@@ -1391,38 +1391,38 @@ fn day_17() {
         let mut res = Vec::new();
         let i = idx / w;
         let j = idx % w;
-        if i > 0 && dir != Dir::South {
+        if i > 0 && dir != Dir::North {
             res.push((
                 (i - 1) * w + j,
                 field[(i - 1) * w + j] as usize,
-                Dir::North
+                Dir::South
             ));
         } else {
             println!("{i} {j} Can't north");
         }
-        if j > 0 && dir != Dir::East {
+        if j > 0 && dir != Dir::West {
             res.push((
                 i * w + j - 1,
                 field[i * w + j - 1] as usize,
-                Dir::West
+                Dir::East
             ));
         } else {
             println!("{i} {j} Can't west");
         }
-        if i < h - 1 && dir != Dir::North {
+        if i < h - 1 && dir != Dir::South {
             res.push((
                 (i + 1) * w + j,
                 field[(i + 1) * w + j] as usize,
-                Dir::South
+                Dir::North
             ));
         } else {
             println!("{i} {j} Can't south");
         }
-        if j < w - 1 && dir != Dir::West {
+        if j < w - 1 && dir != Dir::East {
             res.push((
                 i * w + j + 1,
                 field[i * w + j + 1] as usize,
-                Dir::East
+                Dir::West
             ));
         } else {
             println!("{i} {j} Can't east");
@@ -1438,22 +1438,6 @@ fn day_17() {
         }
         total_path
     }
-    fn take_two(came_from: &HashMap<usize, (usize, Dir)>, current: usize) -> Option<Dir> {
-        let mut three = VecDeque::new();
-        let mut curr = current;
-        let mut counter = 0;
-        while counter < 2 && came_from.contains_key(&curr) {
-            let dir = came_from[&curr].1;
-            curr = came_from[&curr].0;
-            three.push_front(dir);
-            counter += 1;
-        }
-        if three.len() == 2 && three[0] == three[1] {
-            Some(three[0])
-        } else {
-            None
-        }
-    }
     let astar =
         |field: &Vec<u64>, h: usize, w: usize, start: (usize, usize), finish: (usize, usize)| {
             let hh = |u: usize| {
@@ -1462,35 +1446,49 @@ fn day_17() {
             let rows = h * w;
             let mut open_set = BinaryHeap::new();
             let mut came_from: HashMap<usize, (usize, Dir)> = HashMap::new();
-            open_set.push((Reverse(0), (0, Dir::No)));
+            open_set.push((Reverse(0), (0, vec![(0,Dir::No)])));
             let mut g_score = vec![rows * 100; rows];
             g_score[start.0 * w + start.1] = 0;
             let mut f_score = vec![rows * 100; rows];
             f_score[start.0 * w + start.1] = 0;
             let mut res = 0;
-            while let Some((Reverse(_), (idx, odir))) = open_set.pop() {
+            while let Some((Reverse(_), (idx, dirs))) = open_set.pop() {
                 if idx == finish.0 * w + finish.1 {
                     res = idx;
                     break;
                 }
-                println!("{odir:?}");
-                for (k, v, dir) in neighbours(field, idx, h, w, odir) {
+                println!("{dirs:?}");
+                let last_three = if dirs.len() >= 3 {
+                    dirs[dirs.len()-3..].iter().map(|x|x.1).collect()
+                } else {
+                    vec![]
+                };
+                let last = *dirs.last().unwrap();
+                for (k, v, dir) in neighbours(field, idx, h, w, last.1) {
                     let new_score = g_score[idx] + v as usize;
-                    let same = if let Some(cf) = take_two(&came_from, idx) {
-                        cf == dir
-                    } else {
-                        false
-                    };
+                    let same = last_three.len() == 3 && (last_three[0] == last_three[1] || last_three[0] == Dir::No) && last_three[1] == last_three[2] && last_three[2] == dir;
                     if new_score < g_score[k] && !same {
-                        came_from.insert(k, (idx, dir));
+                        came_from.insert(k, (idx, last.1));
                         g_score[k] = new_score;
                         f_score[k] = new_score + hh(k) as usize;
-                        open_set.push((Reverse(f_score[k]), (k, dir)));
+                        let mut new_dirs = dirs.clone();
+                        new_dirs.push((k,dir));
+                        open_set.push((Reverse(f_score[k]), (k, new_dirs)));
                     }
                 }
             }
             let path = reconstruct_path(&came_from, res);
             println!("{path:?}");
+            for r in 0..h {
+                for c in 0..w {
+                    if path.contains(&(r * w + c)) {
+                        print!("X");
+                    } else {
+                        print!("{}", field[r * w + c]);
+                    }
+                }
+                println!();
+            }
             let l = path.iter().map(|x| field[*x] as usize).sum();
             if l == 0 {
                 usize::MAX
@@ -1499,6 +1497,180 @@ fn day_17() {
             }
         };
     println!("{}", astar(&mat, rows, cols, (0, 0), (rows-1, cols-1)));
+}
+
+fn day_18() {
+    let file = File::open("test_input.txt").unwrap();
+    let reader = BufReader::new(file);
+    let lines: Vec<String> = reader.lines().flatten().collect();
+    #[derive(Debug)]
+    enum Dir {
+        Right,
+        Left,
+        Up,
+        Down
+    }
+    let dl = lines.iter().map(|line| {
+        let parts = line.split(' ').collect::<Vec<_>>();
+        let dir = match parts[0] {
+            "R" => Dir::Right,
+            "L" => Dir::Left,
+            "U" => Dir::Up,
+            "D" => Dir::Down,
+            _ => panic!("Wrong letter")
+        };
+        let l = parts[1].parse::<i64>().unwrap();
+        (dir, l)
+    }).collect::<Vec<_>>();
+    let mut min_x = i64::MAX;
+    let mut min_y = i64::MAX;
+    let mut max_x = i64::MIN;
+    let mut max_y = i64::MIN;
+    let mut x = 0i64;
+    let mut y = 0i64;
+    for (d, l) in dl.iter() {
+        match d {
+            Dir::Right => x += l,
+            Dir::Left => x -= l,
+            Dir::Up => y -= l,
+            Dir::Down => y += l,
+        }
+        min_x = x.min(min_x);
+        min_y = y.min(min_y);
+        max_x = x.max(max_x);
+        max_y = y.max(max_y);
+    }
+    let rows = (max_y - min_y) as usize + 1;
+    let cols = (max_x - min_x) as usize + 1;
+    let mut mat = vec!['.'; rows * cols];
+    let idx = |r: usize, c: usize| r * cols + c;
+    let mut x = (0 - min_x) as usize;
+    let mut y = (0 - min_y) as usize;
+    for (d, l) in dl.iter() {
+        (0..*l).for_each(|_| {
+            mat[idx(y,x)] = '#';
+            match d {
+                Dir::Right => {
+                    x += 1;
+                },
+                Dir::Left => {
+                    x -= 1;
+                },
+                Dir::Up => {
+                    y -= 1;
+                },
+                Dir::Down => {
+                    y += 1;
+                },
+            }
+        });
+    }
+    let mut sum = 0;
+    let mut inside = false;
+    for r in 0..rows {
+        for c in 0..cols {
+            if mat[idx(r,c)] == '#' {
+                if r > 0 && mat[idx(r-1,c)] == '#' {
+                    inside = !inside;
+                }
+                sum += 1;
+            }
+            if inside && mat[idx(r,c)] != '#' {
+                sum += 1;
+            }
+        }
+    }
+    // for r in 0..rows {
+    //     for c in 0..cols {
+    //         print!("{}", mat[idx(r,c)]);
+    //     }
+    //     println!();
+    // }
+    let dl2 = lines.iter().map(|line| {
+        let parts = line.split(' ').collect::<Vec<_>>();
+        let num = usize::from_str_radix(&parts[2][2..parts[2].len()-1], 16).unwrap();
+        let dir = match num % 16 {
+            0 => Dir::Right,
+            1 => Dir::Down,
+            2 => Dir::Left,
+            3 => Dir::Up,
+            _ => panic!("Wrong number")
+        };
+        let l = num / 16;
+        (dir, l)
+    }).collect::<Vec<_>>();
+    println!("{dl2:?}");
+    let mut min_x = i64::MAX;
+    let mut min_y = i64::MAX;
+    let mut max_x = i64::MIN;
+    let mut max_y = i64::MIN;
+    let mut x = 0i64;
+    let mut y = 0i64;
+    for (d, l) in dl2.iter() {
+        match d {
+            Dir::Right => x += *l as i64,
+            Dir::Left => x -= *l as i64,
+            Dir::Up => y -= *l as i64,
+            Dir::Down => y += *l as i64,
+        }
+        min_x = x.min(min_x);
+        min_y = y.min(min_y);
+        max_x = x.max(max_x);
+        max_y = y.max(max_y);
+    }
+    let rows = (max_y - min_y) as usize + 1;
+    // let cols = (max_x - min_x) as usize + 1;
+    let mut x = (0 - min_x) as usize;
+    let mut y = (0 - min_y) as usize;
+    let mut mp: HashMap<usize, Vec<usize>> = HashMap::new();
+    for (d, l) in dl2.iter() {
+        (0..*l).for_each(|_| {
+            mp.entry(y).or_default().push(x);
+            match d {
+                Dir::Right => {
+                    x += 1;
+                },
+                Dir::Left => {
+                    x -= 1;
+                },
+                Dir::Up => {
+                    y -= 1;
+                },
+                Dir::Down => {
+                    y += 1;
+                },
+            }
+        });
+    }
+    let mut sum2 = 0;
+    for r in 0..rows {
+        let mut cs: Vec<usize> = mp[&r].clone();
+        cs.sort();
+        let mut inside = false;
+        for i in 0..cs.len() {
+            // sum2 += 1;
+            let c = cs[i];
+            if r > 0 && mp[&(r-1)].contains(&c) {
+                inside = !inside;
+            }
+            if inside {
+                sum2 += cs[i+1] - c;
+                sum2 += 1;
+            }
+        }
+        // for c in 0..cols {
+        //     if mat[idx(r,c)] == '#' {
+        //         if r > 0 && mat[idx(r-1,c)] == '#' {
+        //             inside = !inside;
+        //         }
+        //         sum += 1;
+        //     }
+        //     if inside && mat[idx(r,c)] != '#' {
+        //         sum += 1;
+        //     }
+        // }
+    }
+    println!("day18 {sum} {sum2:?}");
 }
 
 fn main() {
@@ -1518,5 +1690,6 @@ fn main() {
     day_14();
     day_15();
     day_16();
-    day_17();
+    // day_17();
+    day_18();
 }
