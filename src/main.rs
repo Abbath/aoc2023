@@ -1673,6 +1673,79 @@ fn day_18() {
     println!("day18 {sum} {sum2:?}");
 }
 
+fn day_19() {
+    let file = File::open("test_input.txt").unwrap();
+    let reader = BufReader::new(file);
+    let lines: Vec<String> = reader.lines().flatten().collect();
+    let mut two = false;
+    #[derive(Debug)]
+    enum CondType {
+        Less,
+        More
+    }
+    #[derive(Debug)]
+    enum Rule {
+        Reject,
+        Accept,
+        Cond(String, CondType, usize, Box<Rule>),
+        Jump(String)
+    }
+    #[derive(Debug)]
+    struct Part {
+        x: usize,
+        m: usize,
+        a: usize,
+        s: usize
+    }
+    let mut workflows: HashMap<String, Vec<Rule>> = HashMap::new();
+    let mut parts: Vec<Part> = Vec::new();
+    for line in lines.iter() {
+        if line.is_empty() {
+            two = true;
+            continue;
+        }
+        if !two {
+            let (nm, rest) = line.split_once('{').unwrap();
+            let parts = rest[..rest.len()-1].split(',').collect::<Vec<_>>();
+            let rules = parts.iter().map(|&part| {
+                match part {
+                    "R" => Rule::Reject,
+                    "A" => Rule::Accept,
+                    _ => {
+                        if part.contains(':') {
+                            let parts2 = part.split(|c| c == '<' || c == '>' || c == ':').collect::<Vec<_>>();
+                            let ct = if part.contains('<') {
+                                CondType::Less
+                            } else {
+                                CondType::More
+                            };
+                            let pn = parts2[0].to_string();
+                            let val = parts2[1].parse::<usize>().unwrap();
+                            let rule = match parts2[2] {
+                                "R" => Rule::Reject,
+                                "A" => Rule::Accept,
+                                _ => Rule::Jump(parts2[2].to_string())
+                            };
+                            Rule::Cond(pn, ct, val, Box::new(rule))
+                        } else {
+                            Rule::Jump(part.to_string())
+                        }
+                    }
+                }
+            }).collect::<Vec<_>>();
+            workflows.insert(nm.to_string(), rules);
+        } else {
+            let line = line[1..line.len()-1].to_string();
+            let props = line.split(',').map(|part| {
+                let (n, v) = part.split_once('=').unwrap();
+                (n, v.parse::<usize>().unwrap())
+            }).collect::<HashMap<_, _>>();
+            parts.push(Part{x: props["x"], m: props["m"], a: props["a"], s: props["s"]});
+        }
+    }
+    println!("{workflows:?} {parts:?}");
+}
+
 fn main() {
     day_01();
     day_02();
@@ -1691,5 +1764,6 @@ fn main() {
     day_15();
     day_16();
     // day_17();
-    day_18();
+    // day_18();
+    day_19();
 }
