@@ -1674,16 +1674,16 @@ fn day_18() {
 }
 
 fn day_19() {
-    let file = File::open("test_input.txt").unwrap();
+    let file = File::open("input/input_19.txt").unwrap();
     let reader = BufReader::new(file);
     let lines: Vec<String> = reader.lines().flatten().collect();
     let mut two = false;
-    #[derive(Debug)]
+    #[derive(Debug, Clone)]
     enum CondType {
         Less,
         More
     }
-    #[derive(Debug)]
+    #[derive(Debug, Clone)]
     enum Rule {
         Reject,
         Accept,
@@ -1743,7 +1743,48 @@ fn day_19() {
             parts.push(Part{x: props["x"], m: props["m"], a: props["a"], s: props["s"]});
         }
     }
-    println!("{workflows:?} {parts:?}");
+    let sum = parts.iter().map(|part| {
+        let mut state: String = "in".to_string();
+        'outer: loop {
+            let rules = workflows[&state].clone();
+            for rule in rules.iter() {
+                match rule {
+                    Rule::Reject => break 'outer 0,
+                    Rule::Accept => break 'outer (part.x + part.m + part.a + part.s),
+                    Rule::Jump(sname) => {
+                        state = sname.clone();
+                        continue 'outer;
+                    },
+                    Rule::Cond(pn, ct, val, r) => {
+                        let v = match pn.as_str() {
+                            "x" => part.x,
+                            "m" => part.m,
+                            "a" => part.a,
+                            "s" => part.s,
+                            _ => panic!("Wrong property")
+                        };
+                        let c = match ct {
+                            CondType::Less => v < *val,
+                            CondType::More => v > *val
+                        };
+                        if c {
+                            let ru = *r.clone();
+                            match ru {
+                                Rule::Reject => break 'outer 0,
+                                Rule::Accept => break 'outer (part.x + part.m + part.a + part.s),
+                                Rule::Jump(sname) => {
+                                    state = sname.clone();
+                                    continue 'outer;
+                                },
+                                _ => panic!("Wrong rule")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }).sum::<usize>();
+    println!("day19 {sum:?}");
 }
 
 fn main() {
